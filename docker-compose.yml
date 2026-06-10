@@ -39,7 +39,7 @@ services:
       - "10000:10000"
     volumes:
       - azurite_data:/data
-    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose"
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose --skipApiVersionCheck"
     networks:
       - archon
 
