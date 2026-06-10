@@ -65,11 +65,28 @@ jobs:
 
       - name: Wait for all services to be healthy
         run: |
-          wait_for() {
+          # wait_for_any: accepts any HTTP response (including 4xx) — just proves the port is open.
+          # Azurite returns 400/403 on unauthenticated requests, so -f (fail-on-error) is intentionally omitted.
+          wait_for_any() {
             local name=$1 url=$2
             echo "Waiting for $name at $url ..."
             for i in $(seq 1 40); do
-              if curl -sf "$url" > /dev/null 2>&1; then
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "$url" 2>/dev/null || true)
+              if [ -n "$code" ] && [ "$code" != "000" ]; then
+                echo "  $name is up (attempt $i, HTTP $code)"
+                return 0
+              fi
+              sleep 5
+            done
+            echo "ERROR: $name did not start in time"
+            return 1
+          }
+          # wait_for_ok: requires HTTP 200 (FastAPI /health endpoints)
+          wait_for_ok() {
+            local name=$1 url=$2
+            echo "Waiting for $name at $url ..."
+            for i in $(seq 1 40); do
+              if curl -sf --max-time 3 "$url" > /dev/null 2>&1; then
                 echo "  $name is up (attempt $i)"
                 return 0
               fi
@@ -78,10 +95,10 @@ jobs:
             echo "ERROR: $name did not start in time"
             return 1
           }
-          wait_for "azurite"   "http://localhost:10000/devstoreaccount1"
-          wait_for "extraction" "http://localhost:8002/health"
-          wait_for "analysis"  "http://localhost:8001/health"
-          wait_for "backend"   "http://localhost:8000/health"
+          wait_for_any "azurite"    "http://localhost:10000/devstoreaccount1"
+          wait_for_ok  "extraction" "http://localhost:8002/health"
+          wait_for_ok  "analysis"   "http://localhost:8001/health"
+          wait_for_ok  "backend"    "http://localhost:8000/health"
 
       - name: Create Azurite container
         run: |
