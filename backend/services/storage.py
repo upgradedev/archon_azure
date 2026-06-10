@@ -32,6 +32,7 @@ def _ensure_container() -> None:
 
 
 def upload_file(blob_name: str, data: bytes, content_type: str = "application/octet-stream") -> str:
+    _ensure_container()
     client = _client()
     blob = client.get_blob_client(container=CONTAINER, blob=blob_name)
     blob.upload_blob(

@@ -105,13 +105,14 @@ jobs:
           pip install azure-storage-blob -q
           python3 -c "
           from azure.storage.blob import BlobServiceClient
+          from azure.core.exceptions import ResourceExistsError
           conn = 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;'
           client = BlobServiceClient.from_connection_string(conn)
           try:
               client.create_container('archon')
               print('Container archon created')
-          except Exception:
-              print('Container archon already exists')
+          except ResourceExistsError:
+              print('Container archon already exists — OK')
           "
 
       - name: Run end-to-end smoke test
