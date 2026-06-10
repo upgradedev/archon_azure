@@ -109,11 +109,24 @@ jobs:
             --output table \
           || echo "Container may already exist — continuing"
 
+      - name: Seed pre-extracted documents (CI stub — bypasses LLM extraction)
+        # The extraction pipeline requires Azure OpenAI credentials which are not available
+        # in CI. Instead we seed the 7 pre-built synthetic documents directly into Azurite
+        # so the analysis pipeline can run and be validated end-to-end.
+        run: |
+          pip install azure-storage-blob -q
+          AZURITE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;" \
+          AZURE_STORAGE_CONTAINER=archon \
+          python scripts/upload_demo_docs.py
+
       - name: Run end-to-end smoke test
+        # CI_MODE skips the extraction job (step 3/5) and jumps straight to analysis (step 5/5).
+        # The extraction was replaced by the seed step above.
         run: bash scripts/test-pipeline.sh
         env:
           BACKEND_URL: http://localhost:8000
           PERIOD: "2026-01"
+          CI_SKIP_EXTRACTION: "1"
         timeout-minutes: 25
 
       - name: Upload pipeline report artifact
