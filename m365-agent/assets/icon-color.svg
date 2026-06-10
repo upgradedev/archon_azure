@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Archon logo: Greek column capital on a dark blue background -->
+  <rect width="192" height="192" rx="32" fill="#0F2B5B"/>
+  <!-- Greek column -->
+  <rect x="84" y="48" width="24" height="72" fill="#4FC3F7"/>
+  <!-- Capital (top) -->
+  <rect x="64" y="40" width="64" height="14" rx="3" fill="#4FC3F7"/>
+  <!-- Base -->
+  <rect x="60" y="120" width="72" height="10" rx="3" fill="#4FC3F7"/>
+  <rect x="52" y="130" width="88" height="8" rx="3" fill="#4FC3F7"/>
+  <!-- Rising chart line overlay -->
+  <polyline points="48,155 80,145 110,135 144,118" stroke="#00E5FF" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="144" cy="118" r="5" fill="#00E5FF"/>
+  <!-- Greek letter alpha hint at bottom right -->
+  <text x="148" y="170" font-family="serif" font-size="22" fill="#4FC3F7" opacity="0.7">Α</text>
+</svg>

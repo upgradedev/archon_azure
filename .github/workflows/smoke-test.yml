@@ -1,0 +1,117 @@
+name: Pipeline Smoke Test (Azure)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secret scan (gitleaks)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz \
+            | tar -xz -C /tmp
+          /tmp/gitleaks detect --source . --redact --exit-code 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate synthetic sample PDFs
+        run: |
+          pip install reportlab
+          python scripts/generate-sample-data.py
+
+      - name: Create .env from secrets
+        env:
+          AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_VERSION: "2024-05-01-preview"
+        run: |
+          AZURITE_CONN="DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
+          {
+            echo "JOB_RUNNER_BACKEND=local"
+            echo "EXTRACTION_SERVICE_URL=http://extraction:8002"
+            echo "AZURE_STORAGE_CONTAINER=archon"
+            echo "ANALYSIS_ENDPOINT_URL=http://analysis:8001"
+            echo "AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}"
+            echo "AZURE_OPENAI_API_KEY=${AZURE_OPENAI_KEY}"
+            echo "AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}"
+            echo "AZURE_OPENAI_VISION_DEPLOYMENT=gpt-4o"
+            echo "AZURE_OPENAI_ANALYSIS_DEPLOYMENT=gpt-4o"
+            echo "AZURE_AI_SEARCH_ENDPOINT="
+            echo "AZURE_AI_SEARCH_KEY="
+            echo "AZURE_AI_SEARCH_INDEX=archon-knowledge"
+            echo "BACKEND_HOST=0.0.0.0"
+            echo "BACKEND_PORT=8000"
+            echo "CORS_ORIGINS=http://localhost:3000"
+            echo "DATABASE_URL="
+            echo "AZURITE_CONNECTION_STRING=${AZURITE_CONN}"
+            echo "AZURE_STORAGE_CONNECTION_STRING=${AZURITE_CONN}"
+          } > .env
+
+      - name: Build and start services
+        run: docker compose up --build -d azurite extraction analysis backend
+        timeout-minutes: 15
+
+      - name: Wait for all services to be healthy
+        run: |
+          wait_for() {
+            local name=$1 url=$2
+            echo "Waiting for $name at $url ..."
+            for i in $(seq 1 40); do
+              if curl -sf "$url" > /dev/null 2>&1; then
+                echo "  $name is up (attempt $i)"
+                return 0
+              fi
+              sleep 5
+            done
+            echo "ERROR: $name did not start in time"
+            return 1
+          }
+          wait_for "azurite"   "http://localhost:10000/devstoreaccount1"
+          wait_for "extraction" "http://localhost:8002/health"
+          wait_for "analysis"  "http://localhost:8001/health"
+          wait_for "backend"   "http://localhost:8000/health"
+
+      - name: Create Azurite container
+        run: |
+          pip install azure-storage-blob -q
+          python3 -c "
+          from azure.storage.blob import BlobServiceClient
+          conn = 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;'
+          client = BlobServiceClient.from_connection_string(conn)
+          try:
+              client.create_container('archon')
+              print('Container archon created')
+          except Exception:
+              print('Container archon already exists')
+          "
+
+      - name: Run end-to-end smoke test
+        run: bash scripts/test-pipeline.sh
+        env:
+          BACKEND_URL: http://localhost:8000
+          PERIOD: "2026-01"
+        timeout-minutes: 25
+
+      - name: Upload pipeline report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-report
+          path: /tmp/archon-report-*.json
+          if-no-files-found: ignore
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose logs --tail=100

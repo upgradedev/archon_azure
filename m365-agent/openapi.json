@@ -1,0 +1,326 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Archon Financial Intelligence API",
+    "description": "Archon backend — upload documents, trigger extraction jobs, and retrieve regulation-grounded P&L reports for any period.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://archon-api.azurecontainerapps.io",
+      "description": "Archon FastAPI backend (Azure Container Apps)"
+    }
+  ],
+  "paths": {
+    "/api/analyze": {
+      "post": {
+        "operationId": "analyzeFinancials",
+        "summary": "Run financial analysis for a period",
+        "description": "Triggers the 6-agent analysis pipeline for the specified period and returns a full FinancialReport with P&L, cash flow, expense breakdown, payroll cost reconciliation, and a Foundry IQ-grounded executive summary.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["period"],
+                "properties": {
+                  "period": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}$",
+                    "description": "Reporting period in YYYY-MM format (e.g. 2026-01)",
+                    "example": "2026-01"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Financial analysis report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extracted documents found for the requested period"
+          },
+          "500": {
+            "description": "Pipeline error — check job logs"
+          }
+        }
+      }
+    },
+    "/api/reports/{period}": {
+      "get": {
+        "operationId": "getReport",
+        "summary": "Retrieve a cached financial report",
+        "description": "Returns a previously computed FinancialReport from blob storage without re-running the pipeline. Use analyzeFinancials first if no report exists yet.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "description": "Reporting period in YYYY-MM format (e.g. 2026-01)",
+            "example": "2026-01"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cached financial report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No report found for this period — call analyzeFinancials first"
+          }
+        }
+      }
+    },
+    "/api/jobs": {
+      "post": {
+        "operationId": "submitExtractionJob",
+        "summary": "Submit a document extraction job",
+        "description": "Submits an Azure Container Apps extraction job that processes uploaded raw documents through the 4-agent pipeline: Extractor → Classifier → EventLinker → Validator.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["uploadId", "period"],
+                "properties": {
+                  "uploadId": {
+                    "type": "string",
+                    "description": "Upload ID returned by the /api/upload endpoint"
+                  },
+                  "period": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}$",
+                    "description": "Accounting period for the uploaded documents"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{jobId}": {
+      "get": {
+        "operationId": "getJobStatus",
+        "summary": "Get extraction job status",
+        "description": "Returns the current status of an extraction job (pending, running, completed, failed) along with progress percentage and error details if failed.",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID returned by submitExtractionJob"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisResponse": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/FinancialReport"
+          }
+        }
+      },
+      "FinancialReport": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "description": "Reporting period (YYYY-MM)"
+          },
+          "pnl": {
+            "$ref": "#/components/schemas/MonthlyPnL"
+          },
+          "cashFlow": {
+            "$ref": "#/components/schemas/CashFlow"
+          },
+          "expenseBreakdown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExpenseCategory"
+            }
+          },
+          "topVendors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VendorSummary"
+            }
+          },
+          "keyMetrics": {
+            "$ref": "#/components/schemas/KeyMetrics"
+          },
+          "payrollEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollEventSummary"
+            },
+            "description": "Payroll cost reconciliation: bank net vs true employer cost (IKA/EFKA)"
+          },
+          "executiveSummary": {
+            "type": "string",
+            "description": "CFO-level executive summary grounded in IFRS standards and Greek tax regulations via Foundry IQ"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MonthlyPnL": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string" },
+          "revenue": { "type": "number", "description": "Total revenue in EUR" },
+          "expenses": { "type": "number", "description": "Total expenses in EUR" },
+          "netProfit": { "type": "number", "description": "Net profit in EUR" },
+          "grossMarginPct": { "type": "number", "description": "Gross margin %" },
+          "operatingMarginPct": { "type": "number", "description": "Operating margin %" }
+        }
+      },
+      "CashFlow": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string" },
+          "operating": { "type": "number", "description": "Operating cash flow in EUR" },
+          "investing": { "type": "number", "description": "Investing cash flow in EUR" },
+          "financing": { "type": "number", "description": "Financing cash flow in EUR" },
+          "net": { "type": "number", "description": "Net cash flow in EUR" }
+        }
+      },
+      "ExpenseCategory": {
+        "type": "object",
+        "properties": {
+          "category": { "type": "string" },
+          "amount": { "type": "number", "description": "Amount in EUR" },
+          "percentage": { "type": "number", "description": "Share of total expenses %" },
+          "monthOverMonthPct": { "type": "number", "description": "Month-over-month change %" }
+        }
+      },
+      "VendorSummary": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "totalAmount": { "type": "number", "description": "Total amount paid in EUR" },
+          "invoiceCount": { "type": "integer" },
+          "avgDaysToPay": { "type": "number" }
+        }
+      },
+      "KeyMetrics": {
+        "type": "object",
+        "properties": {
+          "revenueGrowthPct": { "type": "number" },
+          "expenseRatioPct": { "type": "number" },
+          "cashBurnRate": { "type": "number" },
+          "invoiceCount": { "type": "integer" },
+          "avgInvoiceValue": { "type": "number", "description": "Average invoice value in EUR" },
+          "collectionRatePct": { "type": "number" }
+        }
+      },
+      "PayrollEventSummary": {
+        "type": "object",
+        "description": "Reconciliation of bank confirmation net pay vs true employer cost including IKA/EFKA contributions",
+        "properties": {
+          "period": { "type": "string" },
+          "company_name": { "type": "string" },
+          "employee_count": { "type": "integer" },
+          "net_total": {
+            "type": "number",
+            "description": "Bank confirmation transfer amount (what hit the bank) — understates true payroll cost"
+          },
+          "employer_cost_total": {
+            "type": "number",
+            "description": "True employer cost from payroll register — includes IKA/EFKA employer contributions (~28% gap vs net)"
+          },
+          "validation_passed": { "type": "boolean" }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed"]
+          },
+          "period": { "type": "string", "description": "Reporting period YYYY-MM" },
+          "documentsCount": { "type": "integer" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "completedAt": { "type": "string", "format": "date-time" },
+          "errorMessage": { "type": "string" },
+          "progress": { "type": "integer", "description": "Progress 0-100" }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Azure AD Bearer token (Microsoft Entra ID)"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

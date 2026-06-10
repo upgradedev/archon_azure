@@ -1,0 +1,83 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURITE_CONNECTION_STRING}
+      - JOB_RUNNER_BACKEND=local
+      - EXTRACTION_SERVICE_URL=http://extraction:8002
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - azurite
+      - extraction
+      - analysis
+    networks:
+      - archon
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    volumes:
+      - ./frontend/src:/app/src
+    networks:
+      - archon
+
+  # Azure Blob Storage emulator (mirrors Azure Blob Storage for local dev)
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite_data:/data
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --loose"
+    networks:
+      - archon
+
+  # Extraction job HTTP wrapper (local dev only — replaces Azure Container Apps Job)
+  extraction:
+    build:
+      context: ./jobs/extraction
+      dockerfile: Dockerfile.local
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURITE_CONNECTION_STRING}
+    depends_on:
+      - azurite
+    networks:
+      - archon
+
+  # Analysis endpoint (mirrors Azure Container Apps container locally)
+  analysis:
+    build:
+      context: ./endpoints/analysis
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      - AZURE_STORAGE_CONNECTION_STRING=${AZURITE_CONNECTION_STRING}
+      - PORT=8001
+    networks:
+      - archon
+
+volumes:
+  azurite_data:
+
+networks:
+  archon:
+    driver: bridge
