@@ -9,9 +9,13 @@ Production: connects to Azure Blob Storage via the same env var.
 """
 
 import json
+import logging
 import os
 
+from azure.core.exceptions import ResourceExistsError
 from azure.storage.blob import BlobServiceClient, ContentSettings
+
+log = logging.getLogger("archon.storage")
 
 
 def _client() -> BlobServiceClient:
@@ -27,8 +31,11 @@ def _ensure_container() -> None:
     container = _client().get_container_client(CONTAINER)
     try:
         container.create_container()
-    except Exception:
-        pass  # already exists
+        log.info("Storage: container '%s' created", CONTAINER)
+    except ResourceExistsError:
+        pass  # already exists — normal path
+    except Exception as exc:
+        log.warning("Storage: could not create container '%s': %s", CONTAINER, exc)
 
 
 def upload_file(blob_name: str, data: bytes, content_type: str = "application/octet-stream") -> str:
