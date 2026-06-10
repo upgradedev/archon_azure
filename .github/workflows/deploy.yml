@@ -1,0 +1,164 @@
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'prod'
+        type: choice
+        options: [prod, staging]
+      image_tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+  push:
+    branches: [master]
+    paths:
+      - 'infra/**'
+      - 'backend/**'
+      - 'endpoints/analysis/**'
+      - 'jobs/extraction/**'
+
+jobs:
+  deploy:
+    name: Deploy Archon to Azure
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+
+    env:
+      RESOURCE_GROUP: archon-rg
+      LOCATION: westeurope
+      IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Azure login ────────────────────────────────────────────────────────────
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── Resource group ─────────────────────────────────────────────────────────
+      - name: Create resource group (idempotent)
+        run: |
+          az group create \
+            --name "$RESOURCE_GROUP" \
+            --location "$LOCATION" \
+            --tags project=archon challenge=AgentsLeague2026 \
+            --output table
+
+      # ── Bicep deployment ───────────────────────────────────────────────────────
+      - name: Deploy Bicep infrastructure
+        id: bicep
+        run: |
+          OUTPUT=$(az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters \
+                postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
+                imageTag="$IMAGE_TAG" \
+                environment="${{ github.event.inputs.environment || 'prod' }}" \
+            --output json)
+
+          # Extract outputs for subsequent steps
+          echo "acr_login_server=$(echo "$OUTPUT"   | jq -r '.properties.outputs.acrLoginServer.value')"   >> "$GITHUB_OUTPUT"
+          echo "postgres_host=$(echo "$OUTPUT"       | jq -r '.properties.outputs.postgresHost.value')"     >> "$GITHUB_OUTPUT"
+          echo "openai_endpoint=$(echo "$OUTPUT"     | jq -r '.properties.outputs.openAIEndpoint.value')"   >> "$GITHUB_OUTPUT"
+          echo "search_endpoint=$(echo "$OUTPUT"     | jq -r '.properties.outputs.searchEndpoint.value')"   >> "$GITHUB_OUTPUT"
+          echo "analysis_url=$(echo "$OUTPUT"        | jq -r '.properties.outputs.analysisEndpointUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "storage_name=$(echo "$OUTPUT"        | jq -r '.properties.outputs.storageAccountName.value')" >> "$GITHUB_OUTPUT"
+          echo "foundry_conn=$(echo "$OUTPUT"        | jq -r '.properties.outputs.foundryConnectionString.value')" >> "$GITHUB_OUTPUT"
+
+          echo "=== Bicep deployment complete ==="
+          echo "ACR:      $(echo "$OUTPUT" | jq -r '.properties.outputs.acrLoginServer.value')"
+          echo "Analysis: $(echo "$OUTPUT" | jq -r '.properties.outputs.analysisEndpointUrl.value')"
+          echo "Postgres: $(echo "$OUTPUT" | jq -r '.properties.outputs.postgresHost.value')"
+
+      # ── Docker images ──────────────────────────────────────────────────────────
+      - name: Login to ACR
+        run: |
+          az acr login --name "$(echo '${{ steps.bicep.outputs.acr_login_server }}' | cut -d'.' -f1)"
+
+      - name: Build and push extraction job image
+        run: |
+          docker build \
+            -t "${{ steps.bicep.outputs.acr_login_server }}/archon-extraction:$IMAGE_TAG" \
+            -f jobs/extraction/Dockerfile \
+            jobs/extraction/
+          docker push "${{ steps.bicep.outputs.acr_login_server }}/archon-extraction:$IMAGE_TAG"
+
+      - name: Build and push analysis endpoint image
+        run: |
+          docker build \
+            -t "${{ steps.bicep.outputs.acr_login_server }}/archon-analysis:$IMAGE_TAG" \
+            -f endpoints/analysis/Dockerfile \
+            endpoints/analysis/
+          docker push "${{ steps.bicep.outputs.acr_login_server }}/archon-analysis:$IMAGE_TAG"
+
+      - name: Build and push backend image
+        run: |
+          docker build \
+            -t "${{ steps.bicep.outputs.acr_login_server }}/archon-backend:$IMAGE_TAG" \
+            -f backend/Dockerfile \
+            backend/
+          docker push "${{ steps.bicep.outputs.acr_login_server }}/archon-backend:$IMAGE_TAG"
+
+      # ── Container App revisions ────────────────────────────────────────────────
+      # Force new revision on the always-on Container Apps so they pull the new image.
+      - name: Update analysis Container App revision
+        run: |
+          az containerapp update \
+            --name archon-analysis \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${{ steps.bicep.outputs.acr_login_server }}/archon-analysis:$IMAGE_TAG" \
+            --output table \
+          || echo "Container App update skipped (may not exist yet if this is first deploy)"
+
+      - name: Update backend Container App revision
+        run: |
+          az containerapp update \
+            --name archon-backend \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${{ steps.bicep.outputs.acr_login_server }}/archon-backend:$IMAGE_TAG" \
+            --output table \
+          || echo "Container App update skipped (may not exist yet if this is first deploy)"
+
+      # ── PostgreSQL schema ──────────────────────────────────────────────────────
+      - name: Apply PostgreSQL schema
+        env:
+          PGPASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          PGHOST="${{ steps.bicep.outputs.postgres_host }}"
+          echo "Applying schema to $PGHOST ..."
+          psql \
+            --host="$PGHOST" \
+            --port=5432 \
+            --username=archon_admin \
+            --dbname=archon \
+            --file=backend/db/schema.sql \
+            --no-password \
+          && echo "Schema applied successfully" \
+          || echo "Schema apply failed — DB may not be ready yet; re-run deploy once firewall rule is set"
+
+      # ── Deploy summary ─────────────────────────────────────────────────────────
+      - name: Deployment summary
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║           Archon Azure — Deployment Complete                 ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "  Analysis endpoint : ${{ steps.bicep.outputs.analysis_url }}"
+          echo "  Azure OpenAI      : ${{ steps.bicep.outputs.openai_endpoint }}"
+          echo "  AI Search         : ${{ steps.bicep.outputs.search_endpoint }}"
+          echo "  Storage account   : ${{ steps.bicep.outputs.storage_name }}"
+          echo "  Postgres host     : ${{ steps.bicep.outputs.postgres_host }}"
+          echo ""
+          echo "  Next steps:"
+          echo "  1. Seed archon-knowledge AI Search index with IFRS/IKA/VAT docs"
+          echo "  2. Package + deploy M365 declarative agent (m365-agent/)"
+          echo "  3. Submit at https://aka.ms/agentsleague/aisf"
