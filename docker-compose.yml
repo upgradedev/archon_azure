@@ -8,7 +8,6 @@ services:
     env_file:
       - .env
     environment:
-      - AZURE_STORAGE_CONNECTION_STRING=${AZURITE_CONNECTION_STRING}
       - JOB_RUNNER_BACKEND=local
       - EXTRACTION_SERVICE_URL=http://extraction:8002
     volumes:
@@ -53,8 +52,6 @@ services:
       - "8002:8002"
     env_file:
       - .env
-    environment:
-      - AZURE_STORAGE_CONNECTION_STRING=${AZURITE_CONNECTION_STRING}
     depends_on:
       - azurite
     networks:
@@ -70,7 +67,6 @@ services:
     env_file:
       - .env
     environment:
-      - AZURE_STORAGE_CONNECTION_STRING=${AZURITE_CONNECTION_STRING}
       - PORT=8001
     networks:
       - archon
