@@ -51,6 +51,26 @@ jobs:
             --tags project=archon challenge=AgentsLeague2026 \
             --output table
 
+      # ── Resolve OpenAI key before Bicep (avoids listKeys() race on account update) ──
+      - name: Resolve OpenAI key
+        id: openai_key
+        run: |
+          OPENAI_ACCOUNT=$(az cognitiveservices account list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[?contains(name,'archon-openai')].name | [0]" \
+            -o tsv 2>/dev/null || true)
+          if [ -n "$OPENAI_ACCOUNT" ] && [ "$OPENAI_ACCOUNT" != "null" ]; then
+            KEY=$(az cognitiveservices account keys list \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$OPENAI_ACCOUNT" \
+              --query key1 -o tsv)
+            echo "key=$KEY" >> "$GITHUB_OUTPUT"
+            echo "OpenAI key resolved from existing account: $OPENAI_ACCOUNT"
+          else
+            echo "key=" >> "$GITHUB_OUTPUT"
+            echo "OpenAI account not yet created — key will be empty on first deploy"
+          fi
+
       # ── Bicep deployment ───────────────────────────────────────────────────────
       - name: Deploy Bicep infrastructure
         id: bicep
@@ -63,6 +83,7 @@ jobs:
                 imageTag="$IMAGE_TAG" \
                 environment="${{ github.event.inputs.environment || 'prod' }}" \
                 openaiLocation="swedencentral" \
+                openaiKey="${{ steps.openai_key.outputs.key }}" \
             --output json)
 
           # Extract outputs for subsequent steps

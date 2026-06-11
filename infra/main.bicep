@@ -33,6 +33,10 @@ param imageTag string = 'latest'
 @description('Azure region for Azure OpenAI — GPT-4o Standard available in swedencentral / eastus / northcentralus')
 param openaiLocation string = 'swedencentral'
 
+@description('Azure OpenAI API key — resolved by CI before deploy to avoid listKeys() race on account update')
+@secure()
+param openaiKey string = ''
+
 var prefix = 'archon'
 var tags = {
   project: 'archon'
@@ -241,7 +245,7 @@ resource extractionJob 'Microsoft.App/jobs@2024-03-01' = {
         }
         {
           name: 'openai-key'
-          value: openai.listKeys().key1
+          value: openaiKey
         }
       ]
     }
@@ -262,7 +266,7 @@ resource extractionJob 'Microsoft.App/jobs@2024-03-01' = {
       }]
     }
   }
-  dependsOn: [acaEnv, gpt4oVision]
+  dependsOn: [acaEnv]
 }
 
 // ── Container App (analysis endpoint — always-on) ─────────────────────────────
@@ -287,7 +291,7 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
         { name: 'storage-conn', value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net' }
-        { name: 'openai-key', value: openai.listKeys().key1 }
+        { name: 'openai-key', value: openaiKey }
         { name: 'search-key', value: aiSearch.listAdminKeys().primaryKey }
         { name: 'pg-url', value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon' }
         // Foundry project connection string: <endpoint>;<sub>;<rg>;<project>
@@ -319,7 +323,7 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: { minReplicas: 1, maxReplicas: 3 }
     }
   }
-  dependsOn: [acaEnv, gpt4oVision]
+  dependsOn: [acaEnv]
 }
 
 // ── Container App (backend — always-on) ───────────────────────────────────────
