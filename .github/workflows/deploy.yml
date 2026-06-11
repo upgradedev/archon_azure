@@ -30,7 +30,7 @@ jobs:
 
     env:
       RESOURCE_GROUP: archon-rg
-      LOCATION: swedencentral
+      LOCATION: westeurope
       IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
 
     steps:
@@ -62,6 +62,7 @@ jobs:
                 postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
                 imageTag="$IMAGE_TAG" \
                 environment="${{ github.event.inputs.environment || 'prod' }}" \
+                openaiLocation="swedencentral" \
             --output json)
 
           # Extract outputs for subsequent steps

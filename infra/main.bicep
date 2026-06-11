@@ -30,6 +30,9 @@ param postgresAdminPassword string
 @description('Container image tag (default: latest)')
 param imageTag string = 'latest'
 
+@description('Azure region for Azure OpenAI — GPT-4o Standard available in swedencentral / eastus / northcentralus')
+param openaiLocation string = 'swedencentral'
+
 var prefix = 'archon'
 var tags = {
   project: 'archon'
@@ -166,7 +169,7 @@ resource searchConnection 'Microsoft.MachineLearningServices/workspaces/connecti
 
 resource openai 'Microsoft.CognitiveServices/accounts@2024-04-01-preview' = {
   name: '${prefix}-openai-${uniqueString(resourceGroup().id)}'
-  location: location
+  location: openaiLocation
   tags: tags
   kind: 'OpenAI'
   sku: { name: 'S0' }
