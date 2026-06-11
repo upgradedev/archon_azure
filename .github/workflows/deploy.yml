@@ -30,7 +30,7 @@ jobs:
 
     env:
       RESOURCE_GROUP: archon-rg
-      LOCATION: westeurope
+      LOCATION: swedencentral
       IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
 
     steps:
