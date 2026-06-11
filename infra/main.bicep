@@ -230,15 +230,26 @@ resource extractionJob 'Microsoft.App/jobs@2024-03-01' = {
         username: acr.listCredentials().username
         passwordSecretRef: 'acr-password'
       }]
-      secrets: [{
-        name: 'acr-password'
-        value: acr.listCredentials().passwords[0].value
-      }]
+      secrets: [
+        {
+          name: 'acr-password'
+          value: acr.listCredentials().passwords[0].value
+        }
+        {
+          name: 'storage-conn'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+        }
+        {
+          name: 'openai-key'
+          value: openai.listKeys().key1
+        }
+      ]
     }
     template: {
       containers: [{
         name: 'archon-extraction'
-        image: '${acr.properties.loginServer}/archon-extraction:${imageTag}'
+        // Placeholder — pipeline updates to real ACR image after push
+        image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
         resources: { cpu: json('2.0'), memory: '4Gi' }
         env: [
           { name: 'AZURE_STORAGE_CONTAINER', value: 'archon' }
@@ -286,7 +297,8 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
     template: {
       containers: [{
         name: 'archon-analysis'
-        image: '${acr.properties.loginServer}/archon-analysis:${imageTag}'
+        // Placeholder — pipeline updates to real ACR image after push
+        image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
         resources: { cpu: json('1.0'), memory: '2Gi' }
         env: [
           { name: 'AZURE_STORAGE_CONTAINER', value: 'archon' }
@@ -310,10 +322,59 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [acaEnv]
 }
 
+// ── Container App (backend — always-on) ───────────────────────────────────────
+
+resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: '${prefix}-backend'
+  location: location
+  tags: tags
+  properties: {
+    environmentId: acaEnv.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 8000
+        transport: 'http'
+      }
+      registries: [{
+        server: acr.properties.loginServer
+        username: acr.listCredentials().username
+        passwordSecretRef: 'acr-password'
+      }]
+      secrets: [
+        { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
+        { name: 'storage-conn', value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net' }
+        { name: 'pg-url', value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon' }
+      ]
+    }
+    template: {
+      containers: [{
+        name: 'archon-backend'
+        // Placeholder — pipeline updates to real ACR image after push
+        image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+        resources: { cpu: json('0.5'), memory: '1Gi' }
+        env: [
+          { name: 'AZURE_STORAGE_CONTAINER', value: 'archon' }
+          { name: 'AZURE_OPENAI_API_VERSION', value: '2024-05-01-preview' }
+          { name: 'ANALYSIS_ENDPOINT_URL', value: 'https://${analysisApp.properties.configuration.ingress.fqdn}' }
+          { name: 'JOB_RUNNER_BACKEND', value: 'azure' }
+          { name: 'AZURE_STORAGE_CONNECTION_STRING', secretRef: 'storage-conn' }
+          { name: 'DATABASE_URL', secretRef: 'pg-url' }
+          { name: 'ACA_JOB_NAME', value: '${prefix}-extraction-job' }
+          { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
+        ]
+      }]
+      scale: { minReplicas: 1, maxReplicas: 3 }
+    }
+  }
+  dependsOn: [acaEnv, analysisApp]
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
 output acrLoginServer string = acr.properties.loginServer
 output analysisEndpointUrl string = 'https://${analysisApp.properties.configuration.ingress.fqdn}'
+output backendUrl string = 'https://${backendApp.properties.configuration.ingress.fqdn}'
 output storageAccountName string = storage.name
 output openAIEndpoint string = openai.properties.endpoint
 output searchEndpoint string = 'https://${aiSearch.name}.search.windows.net'

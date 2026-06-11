@@ -71,6 +71,7 @@ jobs:
           echo "openai_endpoint=$(echo "$OUTPUT"     | jq -r '.properties.outputs.openAIEndpoint.value')"   >> "$GITHUB_OUTPUT"
           echo "search_endpoint=$(echo "$OUTPUT"     | jq -r '.properties.outputs.searchEndpoint.value')"   >> "$GITHUB_OUTPUT"
           echo "analysis_url=$(echo "$OUTPUT"        | jq -r '.properties.outputs.analysisEndpointUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "backend_url=$(echo "$OUTPUT"         | jq -r '.properties.outputs.backendUrl.value')"          >> "$GITHUB_OUTPUT"
           echo "storage_name=$(echo "$OUTPUT"        | jq -r '.properties.outputs.storageAccountName.value')" >> "$GITHUB_OUTPUT"
           echo "foundry_conn=$(echo "$OUTPUT"        | jq -r '.properties.outputs.foundryConnectionString.value')" >> "$GITHUB_OUTPUT"
 
@@ -116,8 +117,7 @@ jobs:
             --name archon-analysis \
             --resource-group "$RESOURCE_GROUP" \
             --image "${{ steps.bicep.outputs.acr_login_server }}/archon-analysis:$IMAGE_TAG" \
-            --output table \
-          || echo "Container App update skipped (may not exist yet if this is first deploy)"
+            --output table
 
       - name: Update backend Container App revision
         run: |
@@ -125,8 +125,7 @@ jobs:
             --name archon-backend \
             --resource-group "$RESOURCE_GROUP" \
             --image "${{ steps.bicep.outputs.acr_login_server }}/archon-backend:$IMAGE_TAG" \
-            --output table \
-          || echo "Container App update skipped (may not exist yet if this is first deploy)"
+            --output table
 
       # ── PostgreSQL schema ──────────────────────────────────────────────────────
       - name: Apply PostgreSQL schema
@@ -153,6 +152,7 @@ jobs:
           echo "║           Archon Azure — Deployment Complete                 ║"
           echo "╚══════════════════════════════════════════════════════════════╝"
           echo ""
+          echo "  Backend           : ${{ steps.bicep.outputs.backend_url }}"
           echo "  Analysis endpoint : ${{ steps.bicep.outputs.analysis_url }}"
           echo "  Azure OpenAI      : ${{ steps.bicep.outputs.openai_endpoint }}"
           echo "  AI Search         : ${{ steps.bicep.outputs.search_endpoint }}"
