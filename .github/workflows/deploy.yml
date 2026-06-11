@@ -42,6 +42,15 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # ── Resource providers ─────────────────────────────────────────────────────
+      - name: Register required resource providers (idempotent)
+        run: |
+          for provider in Microsoft.App Microsoft.ContainerRegistry Microsoft.CognitiveServices Microsoft.Search Microsoft.DBforPostgreSQL Microsoft.MachineLearningServices; do
+            az provider register -n "$provider" --wait &
+          done
+          wait
+          echo "All providers registered"
+
       # ── Resource group ─────────────────────────────────────────────────────────
       - name: Create resource group (idempotent)
         run: |
