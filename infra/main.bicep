@@ -262,7 +262,7 @@ resource extractionJob 'Microsoft.App/jobs@2024-03-01' = {
       }]
     }
   }
-  dependsOn: [acaEnv]
+  dependsOn: [acaEnv, gpt4oVision]
 }
 
 // ── Container App (analysis endpoint — always-on) ─────────────────────────────
@@ -319,7 +319,7 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
       scale: { minReplicas: 1, maxReplicas: 3 }
     }
   }
-  dependsOn: [acaEnv]
+  dependsOn: [acaEnv, gpt4oVision]
 }
 
 // ── Container App (backend — always-on) ───────────────────────────────────────
