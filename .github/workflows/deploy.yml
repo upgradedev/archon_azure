@@ -86,6 +86,7 @@ jobs:
         run: |
           OUTPUT=$(az deployment group create \
             --resource-group "$RESOURCE_GROUP" \
+            --name "main-${{ github.run_id }}" \
             --template-file infra/main.bicep \
             --parameters \
                 postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
