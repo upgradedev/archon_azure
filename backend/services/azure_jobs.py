@@ -1,16 +1,13 @@
 """
 Job runner abstraction — Azure Container Apps Jobs.
 
-Supports Azure Container Apps Jobs in production.
-Switch JOB_RUNNER_BACKEND env var to 'local' for docker-compose dev.
+Supports Azure Container Apps Jobs in production (via SDK + managed identity)
+and a local HTTP extraction service for docker-compose dev.
 
-Azure Container Apps Jobs reference:
-  https://learn.microsoft.com/en-us/azure/container-apps/jobs
+Switch JOB_RUNNER_BACKEND env var to 'local' for local dev.
 """
 
-import json
 import os
-import subprocess
 import uuid
 from datetime import datetime, timezone
 
@@ -21,7 +18,6 @@ EXTRACTION_SERVICE_URL = os.getenv("EXTRACTION_SERVICE_URL", "http://extraction:
 
 
 def submit_extraction_job(upload_id: str, period: str) -> dict:
-    """Submit a document extraction job and return job metadata."""
     if JOB_RUNNER_BACKEND == "azure":
         return _submit_aca_job(upload_id, period)
     if JOB_RUNNER_BACKEND == "local":
@@ -30,39 +26,97 @@ def submit_extraction_job(upload_id: str, period: str) -> dict:
 
 
 def _submit_aca_job(upload_id: str, period: str) -> dict:
-    """Start an Azure Container Apps Job execution."""
-    job_name = os.environ["ACA_EXTRACTION_JOB_NAME"]
+    from azure.identity import DefaultAzureCredential
+    from azure.mgmt.appcontainers import ContainerAppsAPIClient
+
+    job_name = os.environ["ACA_JOB_NAME"]
     resource_group = os.environ["AZURE_RESOURCE_GROUP"]
+    subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
     execution_name = f"extract-{period}-{uuid.uuid4().hex[:6]}"
 
-    env_vars = " ".join([
-        f"UPLOAD_ID={upload_id}",
-        f"PERIOD={period}",
-        f"AZURE_STORAGE_CONNECTION_STRING={os.environ['AZURE_STORAGE_CONNECTION_STRING']}",
-        f"AZURE_STORAGE_CONTAINER={os.getenv('AZURE_STORAGE_CONTAINER', 'archon')}",
-        f"AZURE_OPENAI_ENDPOINT={os.environ['AZURE_OPENAI_ENDPOINT']}",
-        f"AZURE_OPENAI_API_KEY={os.environ['AZURE_OPENAI_API_KEY']}",
-        f"AZURE_OPENAI_API_VERSION={os.getenv('AZURE_OPENAI_API_VERSION', '2024-05-01-preview')}",
-        f"AZURE_OPENAI_VISION_DEPLOYMENT={os.getenv('AZURE_OPENAI_VISION_DEPLOYMENT', 'gpt-4o')}",
-    ])
+    credential = DefaultAzureCredential()
+    client = ContainerAppsAPIClient(credential, subscription_id)
 
-    cmd = [
-        "az", "containerapp", "job", "start",
-        "--name", job_name,
-        "--resource-group", resource_group,
-        "--env-vars", env_vars,
-        "--output", "json",
-    ]
+    template = {
+        "containers": [{
+            "name": "archon-extraction",
+            "env": [
+                {"name": "UPLOAD_ID", "value": upload_id},
+                {"name": "PERIOD", "value": period},
+                {"name": "AZURE_STORAGE_CONNECTION_STRING",
+                 "value": os.environ["AZURE_STORAGE_CONNECTION_STRING"]},
+                {"name": "AZURE_STORAGE_CONTAINER",
+                 "value": os.getenv("AZURE_STORAGE_CONTAINER", "archon")},
+                {"name": "AZURE_OPENAI_ENDPOINT",
+                 "value": os.environ["AZURE_OPENAI_ENDPOINT"]},
+                {"name": "AZURE_OPENAI_API_KEY",
+                 "value": os.environ["AZURE_OPENAI_API_KEY"]},
+                {"name": "AZURE_OPENAI_API_VERSION",
+                 "value": os.getenv("AZURE_OPENAI_API_VERSION", "2024-05-01-preview")},
+                {"name": "AZURE_OPENAI_VISION_DEPLOYMENT",
+                 "value": os.getenv("AZURE_OPENAI_VISION_DEPLOYMENT", "gpt-4o")},
+            ],
+        }],
+    }
 
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    aca_response = json.loads(result.stdout)
+    poller = client.jobs.begin_start(
+        resource_group_name=resource_group,
+        job_name=job_name,
+        template=template,
+    )
+    result = poller.result()
 
     return {
-        "id": aca_response.get("name", execution_name),
+        "id": result.name if hasattr(result, "name") else execution_name,
         "status": "pending",
         "period": period,
         "documentsCount": 0,
         "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def get_job_status(job_id: str) -> dict:
+    if JOB_RUNNER_BACKEND == "azure":
+        return _get_aca_job_status(job_id)
+    if JOB_RUNNER_BACKEND == "local":
+        return _get_local_job_status(job_id)
+    raise NotImplementedError(f"Job runner '{JOB_RUNNER_BACKEND}' not implemented")
+
+
+def _get_aca_job_status(execution_name: str) -> dict:
+    from azure.identity import DefaultAzureCredential
+    from azure.mgmt.appcontainers import ContainerAppsAPIClient
+
+    job_name = os.environ["ACA_JOB_NAME"]
+    resource_group = os.environ["AZURE_RESOURCE_GROUP"]
+    subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
+
+    credential = DefaultAzureCredential()
+    client = ContainerAppsAPIClient(credential, subscription_id)
+
+    execution = client.jobs.get_execution(
+        resource_group_name=resource_group,
+        job_name=job_name,
+        job_execution_name=execution_name,
+    )
+
+    raw_status = execution.properties.status if execution.properties else "Running"
+    status_map = {
+        "Running": "running",
+        "Succeeded": "completed",
+        "Failed": "failed",
+        "Stopped": "failed",
+        "Degraded": "failed",
+        "Processing": "pending",
+    }
+    status = status_map.get(raw_status, "pending")
+
+    return {
+        "id": execution_name,
+        "status": status,
+        "progress": 100 if status == "completed" else (60 if status == "running" else 10),
+        "completedAt": str(execution.properties.end_time) if execution.properties else None,
+        "errorMessage": None if status != "failed" else f"ACA job status: {raw_status}",
     }
 
 
@@ -80,50 +134,6 @@ def _submit_local_job(upload_id: str, period: str) -> dict:
         "period": period,
         "documentsCount": 0,
         "createdAt": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-def get_job_status(job_id: str) -> dict:
-    """Poll job status from the underlying runner."""
-    if JOB_RUNNER_BACKEND == "azure":
-        return _get_aca_job_status(job_id)
-    if JOB_RUNNER_BACKEND == "local":
-        return _get_local_job_status(job_id)
-    raise NotImplementedError(f"Job runner '{JOB_RUNNER_BACKEND}' not implemented")
-
-
-def _get_aca_job_status(execution_name: str) -> dict:
-    job_name = os.environ["ACA_EXTRACTION_JOB_NAME"]
-    resource_group = os.environ["AZURE_RESOURCE_GROUP"]
-
-    cmd = [
-        "az", "containerapp", "job", "execution", "show",
-        "--name", job_name,
-        "--resource-group", resource_group,
-        "--job-execution-name", execution_name,
-        "--output", "json",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    aca_exec = json.loads(result.stdout)
-
-    # Map ACA execution statuses → Archon statuses
-    raw_status = aca_exec.get("properties", {}).get("status", "Running")
-    status_map = {
-        "Running": "running",
-        "Succeeded": "completed",
-        "Failed": "failed",
-        "Stopped": "failed",
-        "Degraded": "failed",
-        "Processing": "pending",
-    }
-    status = status_map.get(raw_status, "pending")
-
-    return {
-        "id": execution_name,
-        "status": status,
-        "progress": 100 if status == "completed" else (60 if status == "running" else 10),
-        "completedAt": aca_exec.get("properties", {}).get("endTime"),
-        "errorMessage": None if status != "failed" else f"ACA job status: {raw_status}",
     }
 
 

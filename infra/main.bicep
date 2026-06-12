@@ -332,6 +332,7 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${prefix}-backend'
   location: location
   tags: tags
+  identity: { type: 'SystemAssigned' }    // managed identity for SDK job submission
   properties: {
     environmentId: acaEnv.id
     configuration: {
@@ -366,12 +367,24 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
           { name: 'DATABASE_URL', secretRef: 'pg-url' }
           { name: 'ACA_JOB_NAME', value: '${prefix}-extraction-job' }
           { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
+          { name: 'AZURE_SUBSCRIPTION_ID', value: subscription().subscriptionId }
         ]
       }]
       scale: { minReplicas: 1, maxReplicas: 3 }
     }
   }
   dependsOn: [acaEnv, analysisApp]
+}
+
+// Grant backend managed identity the Contributor role on the extraction job
+resource backendJobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(extractionJob.id, backendApp.id, 'Contributor')
+  scope: extractionJob
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c') // Contributor
+    principalId: backendApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
 }
 
 // ── Outputs ───────────────────────────────────────────────────────────────────
