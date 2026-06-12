@@ -108,7 +108,7 @@ def _foundry_agent_summary(prompt: str) -> str:
     )
 
     search_tool = AzureAISearchTool(
-        index_connection_id=client.connections.get(search_conn).id,
+        index_connection_id=client.connections.get(connection_name=search_conn).id,
         index_name=index_name,
         query_type="semantic",
         top_k=3,
