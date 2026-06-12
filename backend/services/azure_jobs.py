@@ -98,13 +98,14 @@ def _get_aca_job_status(execution_name: str) -> dict:
     credential = DefaultAzureCredential()
     client = ContainerAppsAPIClient(credential, subscription_id)
 
-    execution = client.jobs.get_execution(
+    execution = client.job_execution(
         resource_group_name=resource_group,
         job_name=job_name,
         job_execution_name=execution_name,
     )
 
-    raw_status = execution.properties.status if execution.properties else "Running"
+    # JobExecution model has status/end_time as direct attributes (not under .properties)
+    raw_status = execution.status or "Running"
     status_map = {
         "Running": "running",
         "Succeeded": "completed",
@@ -119,7 +120,7 @@ def _get_aca_job_status(execution_name: str) -> dict:
         "id": execution_name,
         "status": status,
         "progress": 100 if status == "completed" else (60 if status == "running" else 10),
-        "completedAt": str(execution.properties.end_time) if execution.properties else None,
+        "completedAt": str(execution.end_time) if execution.end_time else None,
         "errorMessage": None if status != "failed" else f"ACA job status: {raw_status}",
     }
 
