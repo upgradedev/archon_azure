@@ -365,6 +365,7 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
           { name: 'AZURE_OPENAI_ENDPOINT', value: openai.properties.endpoint }
           { name: 'AZURE_OPENAI_API_KEY', secretRef: 'openai-key' }
           { name: 'AZURE_OPENAI_VISION_DEPLOYMENT', value: 'gpt-4o' }
+          { name: 'EXTRACTION_IMAGE', value: '${acr.properties.loginServer}/archon-extraction:latest' }
           { name: 'ANALYSIS_ENDPOINT_URL', value: 'https://${analysisApp.properties.configuration.ingress.fqdn}' }
           { name: 'JOB_RUNNER_BACKEND', value: 'azure' }
           { name: 'AZURE_STORAGE_CONNECTION_STRING', secretRef: 'storage-conn' }
