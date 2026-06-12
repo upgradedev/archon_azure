@@ -84,17 +84,25 @@ jobs:
       - name: Deploy Bicep infrastructure
         id: bicep
         run: |
-          OUTPUT=$(az deployment group create \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "main-${{ github.run_id }}" \
-            --template-file infra/main.bicep \
-            --parameters \
-                postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
-                imageTag="$IMAGE_TAG" \
-                environment="${{ github.event.inputs.environment || 'prod' }}" \
-                openaiLocation="swedencentral" \
-                openaiKey="${{ steps.openai_key.outputs.key }}" \
-            --output json)
+          # Retry up to 3 times — ContainerAppsJobOperationInProgress and ServerIsBusy
+          # are transient conflicts that clear within 2-3 minutes of a prior deploy.
+          for attempt in 1 2 3; do
+            OUTPUT=$(az deployment group create \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "main-${{ github.run_id }}-${attempt}" \
+              --template-file infra/main.bicep \
+              --parameters \
+                  postgresAdminPassword='${{ secrets.POSTGRES_ADMIN_PASSWORD }}' \
+                  imageTag="$IMAGE_TAG" \
+                  environment="${{ github.event.inputs.environment || 'prod' }}" \
+                  openaiLocation="swedencentral" \
+                  openaiKey="${{ steps.openai_key.outputs.key }}" \
+              --output json 2>&1) && break
+            echo "Attempt $attempt failed — waiting 120s before retry..."
+            sleep 120
+          done
+          # Fail if last attempt also failed
+          echo "$OUTPUT" | jq -e '.properties.provisioningState == "Succeeded"' > /dev/null
 
           # Extract outputs for subsequent steps
           echo "acr_login_server=$(echo "$OUTPUT"   | jq -r '.properties.outputs.acrLoginServer.value')"   >> "$GITHUB_OUTPUT"
