@@ -211,7 +211,7 @@ def _search_data_source_config() -> dict:
                 "index_name": os.getenv("AZURE_AI_SEARCH_INDEX", "archon-knowledge"),
                 "authentication": {"type": "api_key", "key": key},
                 "query_type": "semantic",
-                "semantic_configuration": "default",
+                "semantic_configuration": "archon-semantic",
                 "strictness": 3,
                 "top_n_documents": 3,
                 "in_scope": True,

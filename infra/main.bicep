@@ -275,6 +275,7 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${prefix}-analysis'
   location: location
   tags: tags
+  identity: { type: 'SystemAssigned' }    // managed identity for Foundry IQ DefaultAzureCredential
   properties: {
     environmentId: acaEnv.id
     configuration: {
@@ -381,9 +382,10 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [acaEnv, analysisApp]
 }
 
-// Note: Contributor role assignment for backendApp managed identity on extractionJob
-// is applied once manually (az role assignment create) — not in Bicep to avoid
-// requiring Microsoft.Authorization/roleAssignments/write on the deploy SP.
+// Note: Role assignments for managed identities are applied once manually (az role
+// assignment create) — not in Bicep to avoid Microsoft.Authorization/roleAssignments/write.
+// backendApp: Contributor on archon-extraction-job (already applied)
+// analysisApp: Azure AI Developer on foundryProject (apply after first deploy with managed identity)
 
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
