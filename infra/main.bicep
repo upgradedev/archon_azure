@@ -350,6 +350,7 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
         { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
         { name: 'storage-conn', value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net' }
         { name: 'pg-url', value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon' }
+        { name: 'openai-key', value: openaiKey }
       ]
     }
     template: {
@@ -361,6 +362,9 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
         env: [
           { name: 'AZURE_STORAGE_CONTAINER', value: 'archon' }
           { name: 'AZURE_OPENAI_API_VERSION', value: '2024-05-01-preview' }
+          { name: 'AZURE_OPENAI_ENDPOINT', value: openai.properties.endpoint }
+          { name: 'AZURE_OPENAI_API_KEY', secretRef: 'openai-key' }
+          { name: 'AZURE_OPENAI_VISION_DEPLOYMENT', value: 'gpt-4o' }
           { name: 'ANALYSIS_ENDPOINT_URL', value: 'https://${analysisApp.properties.configuration.ingress.fqdn}' }
           { name: 'JOB_RUNNER_BACKEND', value: 'azure' }
           { name: 'AZURE_STORAGE_CONNECTION_STRING', secretRef: 'storage-conn' }
