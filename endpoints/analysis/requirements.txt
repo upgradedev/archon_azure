@@ -1,7 +1,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 openai==1.58.1
-azure-ai-projects==1.0.0b11
+azure-ai-projects==1.0.0b10
 azure-identity==1.19.0
 azure-storage-blob==12.23.1
 pydantic==2.10.3
