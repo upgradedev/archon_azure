@@ -37,9 +37,14 @@ def _submit_aca_job(upload_id: str, period: str) -> dict:
     credential = DefaultAzureCredential()
     client = ContainerAppsAPIClient(credential, subscription_id)
 
+    # Fetch current job image — ACA SDK requires image in template override
+    job_def = client.jobs.get(resource_group_name=resource_group, job_name=job_name)
+    current_image = job_def.properties.template.containers[0].image
+
     template = {
         "containers": [{
             "name": "archon-extraction",
+            "image": current_image,
             "env": [
                 {"name": "UPLOAD_ID", "value": upload_id},
                 {"name": "PERIOD", "value": period},
