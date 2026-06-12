@@ -376,16 +376,9 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [acaEnv, analysisApp]
 }
 
-// Grant backend managed identity the Contributor role on the extraction job
-resource backendJobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(extractionJob.id, backendApp.id, 'Contributor')
-  scope: extractionJob
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c') // Contributor
-    principalId: backendApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// Note: Contributor role assignment for backendApp managed identity on extractionJob
+// is applied once manually (az role assignment create) — not in Bicep to avoid
+// requiring Microsoft.Authorization/roleAssignments/write on the deploy SP.
 
 // ── Outputs ───────────────────────────────────────────────────────────────────
 

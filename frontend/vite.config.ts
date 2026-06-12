@@ -15,6 +15,10 @@ export default defineConfig({
       '/api': {
         target: proxyTarget,
         changeOrigin: true,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err) => console.error('[proxy error]', err.message))
+        },
       },
     },
   },
