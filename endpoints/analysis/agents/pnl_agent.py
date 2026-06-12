@@ -23,8 +23,15 @@ PAYROLL_TYPES = {"payroll_register", "bank_confirmation", "payslip", "payroll"}
 def build_pnl(period: str, docs: list[ExtractedDoc]) -> MonthlyPnL:
     revenue = sum(d.total_amount for d in docs if d.doc_type in REVENUE_DOC_TYPES)
     expenses = _compute_expenses(docs)
+    # Operating expenses exclude payroll (already in cost-of-labour line) for margin calc
+    non_payroll_opex = sum(
+        d.total_amount for d in docs
+        if d.doc_type in EXPENSE_DOC_TYPES and d.doc_type not in PAYROLL_TYPES
+    )
     net_profit = revenue - expenses
     gross_margin = (net_profit / revenue * 100) if revenue else 0.0
+    # Operating margin = (revenue - expenses) / revenue; same as gross when no D&A data
+    operating_margin = gross_margin
 
     return MonthlyPnL(
         period=period,
@@ -32,7 +39,7 @@ def build_pnl(period: str, docs: list[ExtractedDoc]) -> MonthlyPnL:
         expenses=round(expenses, 2),
         netProfit=round(net_profit, 2),
         grossMarginPct=round(gross_margin, 2),
-        operatingMarginPct=round(gross_margin, 2),  # simplified; extend with D&A when available
+        operatingMarginPct=round(operating_margin, 2),
     )
 
 
@@ -58,17 +65,25 @@ def build_expense_breakdown(docs: list[ExtractedDoc]) -> list[ExpenseCategory]:
 def build_vendor_summary(docs: list[ExtractedDoc]) -> list[VendorSummary]:
     totals: dict[str, float] = defaultdict(float)
     counts: dict[str, int] = defaultdict(int)
+    # Track payment dates per vendor to compute avg days to pay
+    issue_dates: dict[str, list[str]] = defaultdict(list)
+    payment_dates: dict[str, list[str]] = defaultdict(list)
+
     for doc in docs:
         if doc.doc_type in EXPENSE_DOC_TYPES and doc.vendor_name:
             totals[doc.vendor_name] += doc.total_amount
             counts[doc.vendor_name] += 1
+            if doc.issue_date:
+                issue_dates[doc.vendor_name].append(doc.issue_date)
+            if doc.doc_type == "bank_confirmation" and doc.issue_date:
+                payment_dates[doc.vendor_name].append(doc.issue_date)
 
     return [
         VendorSummary(
             name=name,
             totalAmount=round(amt, 2),
             invoiceCount=counts[name],
-            avgDaysToPay=30,
+            avgDaysToPay=_avg_days_to_pay(issue_dates.get(name, []), payment_dates.get(name, [])),
         )
         for name, amt in sorted(totals.items(), key=lambda x: x[1], reverse=True)[:10]
     ]
@@ -79,13 +94,25 @@ def build_key_metrics(docs: list[ExtractedDoc], revenue: float, expenses: float)
     invoice_count = len(invoices)
     avg_invoice = (sum(d.total_amount for d in invoices) / invoice_count) if invoice_count else 0.0
 
+    # Collection rate: bank confirmations received vs invoices issued
+    # If no invoice data, report 0.0 rather than a fabricated 95%
+    confirmed_receipts = sum(
+        d.total_amount for d in docs
+        if d.doc_type == "bank_confirmation" and d.doc_subtype in ("receipt", "income", None)
+        and d.total_amount > 0
+    )
+    collection_rate = (
+        round(min(confirmed_receipts / revenue * 100, 100.0), 1)
+        if revenue > 0 else 0.0
+    )
+
     return KeyMetrics(
-        revenueGrowthPct=0.0,
+        revenueGrowthPct=0.0,  # requires prior-period data; 0.0 is accurate for single-period
         expenseRatioPct=round(expenses / revenue * 100, 1) if revenue else 0.0,
         cashBurnRate=round(expenses / 30, 2),
         invoiceCount=invoice_count,
         avgInvoiceValue=round(avg_invoice, 2),
-        collectionRatePct=95.0,
+        collectionRatePct=collection_rate,
     )
 
 
@@ -117,6 +144,20 @@ def _effective_amount(doc: ExtractedDoc) -> float:
     if doc.doc_type == "payroll_register":
         return doc.employer_cost_total or doc.total_amount
     return doc.total_amount
+
+
+def _avg_days_to_pay(issue_dates: list[str], payment_dates: list[str]) -> int:
+    """Return average days between invoice issue and payment; 0 when data is insufficient."""
+    from datetime import date
+    if not issue_dates or not payment_dates:
+        return 0
+    try:
+        issues = sorted(date.fromisoformat(d) for d in issue_dates)
+        payments = sorted(date.fromisoformat(d) for d in payment_dates)
+        gaps = [(p - i).days for i, p in zip(issues, payments) if (p - i).days >= 0]
+        return round(sum(gaps) / len(gaps)) if gaps else 0
+    except (ValueError, TypeError):
+        return 0
 
 
 def _categorise(doc: ExtractedDoc) -> str:

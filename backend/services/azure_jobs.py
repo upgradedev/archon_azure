@@ -68,7 +68,9 @@ def _submit_aca_job(upload_id: str, period: str) -> dict:
         job_name=job_name,
         template=template,
     )
-    result = poller.result()
+    # timeout=30s: we only need the execution name from the ARM response,
+    # not job completion. The actual job runs asynchronously; status is polled separately.
+    result = poller.result(timeout=30)
 
     return {
         "id": result.name if hasattr(result, "name") else execution_name,

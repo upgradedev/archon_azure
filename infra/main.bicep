@@ -296,7 +296,9 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
         { name: 'search-key', value: aiSearch.listAdminKeys().primaryKey }
         { name: 'pg-url', value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon' }
         // Foundry project connection string: <endpoint>;<sub>;<rg>;<project>
-        { name: 'foundry-conn', value: '${foundryProject.properties.discoveryUrl};${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}' }
+        // discoveryUrl resolves to a generic regional URL; the azure-ai-projects SDK requires
+        // the workspace-specific API endpoint: https://<region>.api.azureml.ms
+        { name: 'foundry-conn', value: 'https://${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}' }
       ]
     }
     template: {
