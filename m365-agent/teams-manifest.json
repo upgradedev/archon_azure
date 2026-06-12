@@ -1,0 +1,41 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "a3f2c8d1-5b7e-4f9a-8c6d-2e1b4a7f3d9c",
+  "packageName": "com.archon.financial.intelligence",
+  "developer": {
+    "name": "Efthymios Fousekis",
+    "websiteUrl": "https://github.com/upgradedev/archon_azure",
+    "privacyUrl": "https://github.com/upgradedev/archon_azure/blob/master/LICENSE",
+    "termsOfUseUrl": "https://github.com/upgradedev/archon_azure/blob/master/LICENSE"
+  },
+  "icons": {
+    "color": "icon-color.png",
+    "outline": "icon-outline.png"
+  },
+  "name": {
+    "short": "Archon",
+    "full": "Archon Financial Intelligence"
+  },
+  "description": {
+    "short": "Agentic P&L intelligence for SMBs",
+    "full": "Agentic P&L intelligence for SMBs. Ask Archon about revenue, expenses, payroll costs, cash flow, and regulation-cited executive summaries grounded in your uploaded business documents."
+  },
+  "accentColor": "#0F2B5B",
+  "copilotAgents": {
+    "declarativeAgents": [
+      {
+        "id": "ArchonFinancialIntelligence",
+        "file": "declarativeAgent.json"
+      }
+    ]
+  },
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io"
+  ]
+}
