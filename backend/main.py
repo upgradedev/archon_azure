@@ -6,7 +6,7 @@ from routers import upload, jobs, analysis
 
 
 class Settings(BaseSettings):
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = ""
 
     class Config:
         env_file = ".env"
@@ -20,10 +20,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
+_explicit_origins = [o for o in settings.cors_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins.split(","),
-    allow_credentials=True,
+    allow_origins=_explicit_origins or ["*"],
+    allow_origin_regex=r"http://localhost:\d+",
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
