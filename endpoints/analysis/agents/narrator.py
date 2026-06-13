@@ -145,12 +145,29 @@ def _foundry_agent_summary(prompt: str) -> str:
         _wait_for_run(client, thread.id, run.id)
 
         messages = client.agents.list_messages(thread_id=thread.id)
-        # Last assistant message is the summary
+        # Last assistant message contains the summary text + citation annotations
         for msg in reversed(messages.data):
             if msg.role == MessageRole.ASSISTANT:
+                text_value = ""
+                citations: list[str] = []
                 for block in msg.content:
                     if hasattr(block, "text"):
-                        return block.text.value.strip()
+                        text_value = block.text.value.strip()
+                        # Extract citations from annotations (FileCitation / UrlCitation)
+                        for ann in getattr(block.text, "annotations", []) or []:
+                            ref = (
+                                getattr(ann, "url_citation", None)
+                                or getattr(ann, "file_citation", None)
+                            )
+                            if ref:
+                                label = getattr(ref, "title", None) or getattr(ref, "url", "")
+                                if label and label not in citations:
+                                    citations.append(label)
+                if text_value:
+                    if citations:
+                        citation_block = "\n\nSources: " + " · ".join(citations)
+                        return text_value + citation_block
+                    return text_value
         raise RuntimeError("Foundry agent returned no assistant message")
 
     finally:

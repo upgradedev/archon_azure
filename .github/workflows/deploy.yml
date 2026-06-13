@@ -166,6 +166,32 @@ jobs:
             --image "${{ steps.bicep.outputs.acr_login_server }}/archon-backend:$IMAGE_TAG" \
             --output table
 
+      # ── Foundry IQ — managed identity role assignment ─────────────────────────
+      # Grant the analysis Container App's system-assigned managed identity the
+      # "Azure AI Developer" role on the Foundry project so DefaultAzureCredential
+      # in narrator.py can create/run Foundry agents (azure-ai-projects SDK).
+      # Uses --assignee-object-id to bypass Graph API lookup (avoids tenant propagation delays).
+      - name: Assign Azure AI Developer role to analysis app managed identity
+        run: |
+          ANALYSIS_PRINCIPAL=$(az containerapp show \
+            --name archon-analysis \
+            --resource-group "$RESOURCE_GROUP" \
+            --query identity.principalId -o tsv)
+          FOUNDRY_PROJECT_ID=$(az resource show \
+            --resource-group "$RESOURCE_GROUP" \
+            --resource-type Microsoft.MachineLearningServices/workspaces \
+            --name archon-project \
+            --query id -o tsv)
+          echo "Analysis principal: $ANALYSIS_PRINCIPAL"
+          echo "Foundry project ID: $FOUNDRY_PROJECT_ID"
+          az role assignment create \
+            --assignee-object-id "$ANALYSIS_PRINCIPAL" \
+            --assignee-principal-type ServicePrincipal \
+            --role "Azure AI Developer" \
+            --scope "$FOUNDRY_PROJECT_ID" \
+          && echo "Role assignment applied" \
+          || echo "Role assignment skipped (may already exist)"
+
       # ── PostgreSQL schema ──────────────────────────────────────────────────────
       - name: Apply PostgreSQL schema
         env:

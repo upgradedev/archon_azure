@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://archon-api.azurecontainerapps.io",
+      "url": "https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io",
       "description": "Archon FastAPI backend (Azure Container Apps)"
     }
   ],
