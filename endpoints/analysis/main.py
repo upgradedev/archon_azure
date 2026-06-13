@@ -21,8 +21,6 @@ Writes to:
 import json
 import logging
 import os
-import pathlib
-from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from azure.storage.blob import BlobServiceClient
@@ -51,36 +49,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-def _apply_schema() -> None:
-    if not settings.database_url:
-        log.info("DATABASE_URL not set — skipping schema migration")
-        return
-    try:
-        import psycopg2
-        schema_path = pathlib.Path(__file__).parent / "schema.sql"
-        if not schema_path.exists():
-            schema_path = pathlib.Path(__file__).parent.parent.parent / "backend" / "db" / "schema.sql"
-        if not schema_path.exists():
-            log.warning("schema.sql not found — skipping migration")
-            return
-        sql = schema_path.read_text()
-        conn = psycopg2.connect(settings.database_url, connect_timeout=10)
-        conn.autocommit = True
-        with conn.cursor() as cur:
-            cur.execute(sql)
-        conn.close()
-        log.info("Schema migration applied successfully")
-    except Exception as exc:
-        log.warning("Schema migration failed (non-fatal): %s", exc)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    _apply_schema()
-    yield
-
-
-app = FastAPI(title="Archon Analysis Endpoint (Azure)", version="2.1.0", lifespan=lifespan)
+app = FastAPI(title="Archon Analysis Endpoint (Azure)", version="2.1.0")
 
 
 def _blob_client() -> BlobServiceClient:
