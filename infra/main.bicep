@@ -125,48 +125,26 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-03-01-preview' = {
 // ── Azure AI Foundry (Machine Learning workspace — hosts the agent project) ───
 // The Foundry project provides the agent runtime, connection registry (AI Search),
 // and evaluation tooling used by the NarratorAgent (azure-ai-projects SDK).
+//
+// IMPORTANT: foundryWorkspace.properties.storageAccount is immutable after Hub creation.
+// ARM PUT on subsequent deploys fails with "property cannot be modified".
+// Using 'existing' references prevents ARM from attempting to update these resources.
+// The Hub and Project were created on the initial deploy and must not be re-provisioned.
 
-resource foundryWorkspace 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
+resource foundryWorkspace 'Microsoft.MachineLearningServices/workspaces@2024-04-01' existing = {
   name: '${prefix}-foundry-${uniqueString(resourceGroup().id)}'
-  location: location
-  tags: tags
-  kind: 'Hub'
-  sku: { name: 'Basic', tier: 'Basic' }
-  identity: { type: 'SystemAssigned' }
-  properties: {
-    friendlyName: 'Archon Foundry'
-    description: 'Azure AI Foundry hub for Archon — hosts NarratorAgent with AzureAISearch grounding (Foundry IQ)'
-    publicNetworkAccess: 'Enabled'
-    storageAccount: storage.id
-  }
 }
 
-resource foundryProject 'Microsoft.MachineLearningServices/workspaces@2024-04-01' = {
+resource foundryProject 'Microsoft.MachineLearningServices/workspaces@2024-04-01' existing = {
   name: '${prefix}-project'
-  location: location
-  tags: tags
-  kind: 'Project'
-  sku: { name: 'Basic', tier: 'Basic' }
-  identity: { type: 'SystemAssigned' }
-  properties: {
-    friendlyName: 'archon-project'
-    hubResourceId: foundryWorkspace.id
-  }
 }
 
-// AI Search connection registered inside the Foundry project so the
-// NarratorAgent can reference it by name via AZURE_AI_SEARCH_CONNECTION_NAME.
-resource searchConnection 'Microsoft.MachineLearningServices/workspaces/connections@2024-04-01' = {
+// AI Search connection inside Foundry project — referenced as existing.
+// The connection (archon-search) was created on initial deploy and is immutable;
+// the credentials.key field cannot be updated via ARM PUT without risks of conflict.
+resource searchConnection 'Microsoft.MachineLearningServices/workspaces/connections@2024-04-01' existing = {
   parent: foundryProject
   name: 'archon-search'
-  properties: {
-    category: 'CognitiveSearch'
-    target: 'https://${aiSearch.name}.search.windows.net'
-    authType: 'ApiKey'
-    credentials: {
-      key: aiSearch.listAdminKeys().primaryKey
-    }
-  }
 }
 
 // ── Azure OpenAI ──────────────────────────────────────────────────────────────
@@ -399,4 +377,4 @@ output openAIEndpoint string = openai.properties.endpoint
 output searchEndpoint string = 'https://${aiSearch.name}.search.windows.net'
 output postgresHost string = pgServer.properties.fullyQualifiedDomainName
 output foundryProjectName string = foundryProject.name
-output foundryConnectionString string = '${foundryProject.properties.discoveryUrl};${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}'
+output foundryConnectionString string = 'https://${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}'
