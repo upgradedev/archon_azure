@@ -16,3 +16,4 @@ sample-data/generated/
 *.tfstate
 *.tfstate.backup
 .env.local
+*.zip
