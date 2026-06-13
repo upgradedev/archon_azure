@@ -84,8 +84,9 @@ jobs:
       - name: Deploy Bicep infrastructure
         id: bicep
         run: |
-          # Retry up to 3 times — ContainerAppsJobOperationInProgress and ServerIsBusy
-          # are transient conflicts that clear within 2-3 minutes of a prior deploy.
+          # Retry up to 3 times — ContainerAppsJobOperationInProgress, ServerIsBusy,
+          # and ML workspace update conflicts are transient and clear within 3-5 minutes.
+          DEPLOY_OK=0
           for attempt in 1 2 3; do
             OUTPUT=$(az deployment group create \
               --resource-group "$RESOURCE_GROUP" \
@@ -97,11 +98,25 @@ jobs:
                   environment="${{ github.event.inputs.environment || 'prod' }}" \
                   openaiLocation="swedencentral" \
                   openaiKey="${{ steps.openai_key.outputs.key }}" \
-              --output json 2>&1) && break
-            echo "Attempt $attempt failed — waiting 120s before retry..."
-            sleep 120
+              --output json 2>&1)
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              DEPLOY_OK=1
+              break
+            fi
+            echo "=== Attempt $attempt FAILED (exit code: $EXIT_CODE) ==="
+            echo "$OUTPUT" | tail -60
+            echo "========================================================="
+            if [ $attempt -lt 3 ]; then
+              echo "Waiting 180s before retry..."
+              sleep 180
+            fi
           done
-          # Fail if last attempt also failed
+          if [ $DEPLOY_OK -ne 1 ]; then
+            echo "All 3 Bicep deploy attempts failed — see ARM errors above"
+            exit 1
+          fi
+          # Verify final state
           echo "$OUTPUT" | jq -e '.properties.provisioningState == "Succeeded"' > /dev/null
 
           # Extract outputs for subsequent steps

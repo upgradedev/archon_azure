@@ -98,7 +98,8 @@ def build_key_metrics(docs: list[ExtractedDoc], revenue: float, expenses: float)
     # If no invoice data, report 0.0 rather than a fabricated 95%
     confirmed_receipts = sum(
         d.total_amount for d in docs
-        if d.doc_type == "bank_confirmation" and d.doc_subtype in ("receipt", "income", None)
+        if d.doc_type == "bank_confirmation"
+        and getattr(d, "doc_subtype", None) in ("receipt", "income", None)
         and d.total_amount > 0
     )
     collection_rate = (
