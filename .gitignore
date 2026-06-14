@@ -17,3 +17,7 @@ sample-data/generated/
 *.tfstate.backup
 .env.local
 *.zip
+*.webm
+*.mp4
+*.mp3
+scripts/demo-output/
