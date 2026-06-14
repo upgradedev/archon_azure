@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     azure_storage_connection_string: str = ""
     azure_storage_container: str = "archon"
     database_url: str = ""
+    company_name: str = ""      # e.g. "Upgrade SA" — used by classifier to identify sales docs
+    company_tax_id: str = ""    # ΑΦΜ / VAT ID digits only — strongest sales classification signal
 
     class Config:
         env_file = ".env"
@@ -109,7 +111,7 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=404, detail=f"No extracted documents for period {req.period}")
     log.info("Loaded %d documents", len(all_docs))
 
-    all_docs = classify(all_docs)
+    all_docs = classify(all_docs, settings.company_tax_id, settings.company_name)
     fin_docs = [d for d in all_docs if d.doc_type != "account_statement"]
     log.info("Financial docs: %d, Account statements: %d",
              len(fin_docs), len(all_docs) - len(fin_docs))
@@ -175,6 +177,19 @@ def list_periods():
         raise HTTPException(status_code=500, detail=f"Storage error: {exc}") from exc
 
 
+@app.get("/documents/{period}")
+def list_documents(period: str):
+    """Return classified extracted documents for a period — used by UI tile drill-down."""
+    docs = _load_documents(period)
+    if not docs:
+        raise HTTPException(status_code=404, detail=f"No extracted documents for period {period}")
+    classified = classify(docs, settings.company_tax_id, settings.company_name)
+    return {
+        "period": period,
+        "documents": [d.model_dump() for d in classified],
+    }
+
+
 @app.delete("/periods/{period}")
 def delete_period(period: str):
     """Delete all extracted documents and cached report for a period."""
@@ -193,6 +208,48 @@ def delete_period(period: str):
             pass
     log.info("Deleted %d blobs for period %s", deleted, period)
     return {"deleted": deleted, "period": period}
+
+
+@app.get("/company-profile")
+def company_profile():
+    """Return the configured company identity used for document classification."""
+    return {"company_name": settings.company_name, "company_tax_id": settings.company_tax_id}
+
+
+class DocumentUpdateRequest(BaseModel):
+    documents: list[ExtractedDoc]
+
+
+@app.put("/documents/{period}")
+def update_documents(period: str, req: DocumentUpdateRequest):
+    """
+    Overwrite extracted documents for a period after user review.
+    Deletes all existing documents.json blobs under the period prefix and
+    writes a single consolidated reviewed/documents.json with the approved list.
+    """
+    container = _blob_client().get_container_client(settings.azure_storage_container)
+    prefix = f"extracted/{period}/"
+
+    deleted = 0
+    for blob in container.list_blobs(name_starts_with=prefix):
+        if blob.name.endswith("documents.json"):
+            container.delete_blob(blob.name)
+            deleted += 1
+
+    blob_name = f"extracted/{period}/reviewed/documents.json"
+    payload = {
+        "documents": [d.model_dump() for d in req.documents],
+        "upload_id": "reviewed",
+        "period": period,
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    _blob_client().get_blob_client(
+        container=settings.azure_storage_container, blob=blob_name
+    ).upload_blob(body, overwrite=True)
+
+    log.info("Documents updated — period=%s approved=%d deleted_blobs=%d",
+             period, len(req.documents), deleted)
+    return {"period": period, "documents": len(req.documents), "deleted_blobs": deleted}
 
 
 @app.get("/health")

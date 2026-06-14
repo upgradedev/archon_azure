@@ -1,4 +1,33 @@
-export type DocType = 'invoice' | 'payroll' | 'expense' | 'sales' | 'unknown'
+export type DocType = 'invoice' | 'payroll' | 'expense' | 'sales' | 'payroll_register' | 'payslip' | 'bank_confirmation' | 'account_statement' | 'unknown'
+
+export interface ExtractedDoc {
+  source_file: string
+  doc_type: DocType
+  detected_language: string
+  issue_date: string | null
+  vendor_name: string | null
+  vendor_tax_id: string | null
+  recipient_name: string | null
+  currency: string
+  total_amount: number
+  subtotal: number | null
+  vat_amount: number | null
+  vat_rate_pct: number | null
+  payment_due_date: string | null
+  invoice_number: string | null
+  notes: string | null
+  confidence: number
+  employee_count: number | null
+  gross_pay_total: number | null
+  net_pay_total: number | null
+  employee_name: string | null
+  statement_balance: number | null
+}
+
+export interface CompanyProfile {
+  company_name: string
+  company_tax_id: string
+}
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
 
