@@ -32,16 +32,19 @@ const ANALYSIS_URL = process.env.ANALYSIS_URL ||
   'https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io';
 const PERIOD = '2026-01';
 
-// Pause durations (ms) — tune to match narration pacing
+// Pause durations (ms) — matched exactly to demo-script.md section timecodes.
+// The Playwright recording is continuous; these pauses ARE the display time for
+// each section. FFmpeg mixes in the ElevenLabs narration audio (-shortest).
+// Total: 25+35+45+45+45+45+40+20 = 300 s = exactly 5 minutes.
 const PAUSE = {
-  hook: 6000,          // 0:00–0:25 hook narration
-  problem: 8000,       // 0:25–1:00 problem section
-  solution: 10000,     // 1:00–1:45 solution overview
-  upload: 12000,       // 1:45–2:30 upload demo
-  dashboard: 14000,    // 2:30–3:15 dashboard
-  foundry: 12000,      // 3:15–4:00 foundry IQ
-  teams: 10000,        // 4:00–4:40 teams section
-  close: 6000,         // 4:40–5:00 close
+  hook: 25000,         // 0:00–0:25  hook narration (~63 words @ 150 wpm)
+  problem: 35000,      // 0:25–1:00  problem section (~88 words)
+  solution: 45000,     // 1:00–1:45  solution overview (~113 words)
+  upload: 45000,       // 1:45–2:30  upload demo (~113 words)
+  dashboard: 45000,    // 2:30–3:15  dashboard (analysis runs during this; shows live)
+  foundry: 45000,      // 3:15–4:00  foundry IQ executive summary (~113 words)
+  teams: 40000,        // 4:00–4:40  teams / enterprise agent (~100 words)
+  close: 20000,        // 4:40–5:00  close (~50 words)
 };
 
 async function sleep(ms) {

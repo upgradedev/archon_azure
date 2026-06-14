@@ -9,14 +9,14 @@
 
 | Timecode | Screen | Narration cue |
 |---|---|---|
-| 0:00–0:25 | Title card: Archon logo + tagline | Hook |
-| 0:25–1:00 | Diagram: bank slip → gap → true cost | Problem |
-| 1:00–1:45 | Azure architecture diagram | Solution overview |
-| 1:45–2:30 | Browser: upload screen + file drag | Demo — upload |
-| 2:30–3:15 | Browser: dashboard loading, P&L chart | Demo — analysis |
-| 3:15–4:00 | Browser: executive summary with citations | Foundry IQ |
-| 4:00–4:40 | Teams: Archon chat bubble + response | Enterprise agent |
-| 4:40–5:00 | Title card: repo link + track badges | Close |
+| 0:00–0:25 | Title card: Archon logo + "Agentic Financial Intelligence" tagline | Hook |
+| 0:25–1:00 | `docs/architecture.svg` — highlight the four document stream boxes + EventLinker | Problem |
+| 1:00–1:45 | Full `docs/architecture.svg` — highlight Foundry IQ path (purple) and M365 path | Solution overview |
+| 1:45–2:30 | Browser: upload screen — show document upload UI + period selector | Demo — upload |
+| 2:30–3:15 | Browser: dashboard loading → P&L chart + expense breakdown appear | Demo — analysis |
+| 3:15–4:00 | Browser: scroll to Executive Summary — highlight Sources: citation line | Foundry IQ |
+| 4:00–4:40 | Teams / GitHub: M365 agent sideloaded, conversation starters visible | Enterprise agent |
+| 4:40–5:00 | GitHub repo homepage — README badges, track badges overlay | Close |
 
 ---
 
