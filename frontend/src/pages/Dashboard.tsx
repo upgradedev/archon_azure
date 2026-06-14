@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Layout, Typography, Row, Col, Card, Button, Spin, Alert, Space, theme,
+  Layout, Typography, Row, Col, Card, Button, Spin, Alert, Space, theme, Result,
 } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { api } from '../api/client'
 import PnLChart from '../components/PnLChart'
 import CashFlowChart from '../components/CashFlowChart'
@@ -19,18 +19,66 @@ export default function DashboardPage() {
   const { period } = useParams<{ period: string }>()
   const navigate = useNavigate()
   const { token } = useToken()
+  const queryClient = useQueryClient()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['report', period],
     queryFn: () => api.getReport(period!),
     enabled: !!period,
-    retry: 2,
+    retry: (failureCount, err) => {
+      // never retry on 4xx — only on network errors or 5xx
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status && status >= 400 && status < 500) return false
+      return failureCount < 2
+    },
+  })
+
+  const analyzeMutation = useMutation({
+    mutationFn: () => api.analyze(period!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['report', period] }),
   })
 
   if (isLoading) {
     return (
       <Layout style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Spin size="large" tip="Loading financial report..." />
+      </Layout>
+    )
+  }
+
+  // 404 — report not yet generated for this period
+  const status = (error as { response?: { status?: number } })?.response?.status
+  if (!data && status === 404) {
+    return (
+      <Layout style={{ minHeight: '100vh', padding: 48 }}>
+        <Result
+          status="info"
+          title={`No report for ${period} yet`}
+          subTitle="Run the 7-agent analysis pipeline to generate a financial report for this period."
+          extra={[
+            <Button
+              key="analyze"
+              type="primary"
+              size="large"
+              icon={<ThunderboltOutlined />}
+              loading={analyzeMutation.isPending}
+              onClick={() => analyzeMutation.mutate()}
+            >
+              {analyzeMutation.isPending ? 'Running analysis (30–90s)…' : 'Run Analysis'}
+            </Button>,
+            <Button key="back" onClick={() => navigate('/upload')}>
+              <ArrowLeftOutlined /> New upload
+            </Button>,
+          ]}
+        />
+        {analyzeMutation.isError && (
+          <Alert
+            type="error"
+            message="Analysis failed"
+            description={String(analyzeMutation.error)}
+            style={{ marginTop: 24 }}
+          />
+        )}
       </Layout>
     )
   }

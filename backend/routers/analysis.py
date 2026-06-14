@@ -28,6 +28,8 @@ async def trigger_analysis(
             )
             resp.raise_for_status()
             return resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:300]) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
 
@@ -43,5 +45,7 @@ async def get_report(
             resp = await client.get(f"{ANALYSIS_ENDPOINT_URL}/reports/{period}")
             resp.raise_for_status()
             return resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:300]) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
