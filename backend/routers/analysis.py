@@ -48,6 +48,23 @@ async def trigger_analysis(
         raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
 
 
+@router.delete("/periods/{period}")
+async def delete_period(
+    period: str,
+    _claims: dict = Depends(validate_entra_token),
+):
+    """Delete all extracted documents and cached report for a period."""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.delete(f"{ANALYSIS_ENDPOINT_URL}/periods/{period}")
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:300]) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
+
+
 @router.get("/reports/{period}")
 async def get_report(
     period: str,

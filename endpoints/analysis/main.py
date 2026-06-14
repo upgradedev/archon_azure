@@ -175,6 +175,26 @@ def list_periods():
         raise HTTPException(status_code=500, detail=f"Storage error: {exc}") from exc
 
 
+@app.delete("/periods/{period}")
+def delete_period(period: str):
+    """Delete all extracted documents and cached report for a period."""
+    container = _blob_client().get_container_client(settings.azure_storage_container)
+    deleted = 0
+    for blob in container.list_blobs(name_starts_with=f"extracted/{period}/"):
+        container.delete_blob(blob.name)
+        deleted += 1
+    for path in [f"reports/{period}/report.json", f"reports/{period}.json"]:
+        try:
+            _blob_client().get_blob_client(
+                container=settings.azure_storage_container, blob=path
+            ).delete_blob()
+            deleted += 1
+        except Exception:
+            pass
+    log.info("Deleted %d blobs for period %s", deleted, period)
+    return {"deleted": deleted, "period": period}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "archon-analysis-azure", "version": "2.1.0"}
