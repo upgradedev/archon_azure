@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     azure_storage_connection_string: str = ""
     azure_storage_container: str = "archon"
     database_url: str = ""
+    company_name: str = ""      # e.g. "Upgrade SA" — used by classifier to identify sales docs
+    company_tax_id: str = ""    # ΑΦΜ / VAT ID digits only — strongest sales classification signal
 
     class Config:
         env_file = ".env"
@@ -109,7 +111,7 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=404, detail=f"No extracted documents for period {req.period}")
     log.info("Loaded %d documents", len(all_docs))
 
-    all_docs = classify(all_docs)
+    all_docs = classify(all_docs, settings.company_tax_id, settings.company_name)
     fin_docs = [d for d in all_docs if d.doc_type != "account_statement"]
     log.info("Financial docs: %d, Account statements: %d",
              len(fin_docs), len(all_docs) - len(fin_docs))
@@ -173,6 +175,19 @@ def list_periods():
         return {"periods": sorted(periods)}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Storage error: {exc}") from exc
+
+
+@app.get("/documents/{period}")
+def list_documents(period: str):
+    """Return classified extracted documents for a period — used by UI tile drill-down."""
+    docs = _load_documents(period)
+    if not docs:
+        raise HTTPException(status_code=404, detail=f"No extracted documents for period {period}")
+    classified = classify(docs, settings.company_tax_id, settings.company_name)
+    return {
+        "period": period,
+        "documents": [d.model_dump() for d in classified],
+    }
 
 
 @app.delete("/periods/{period}")

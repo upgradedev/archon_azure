@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { UploadResponse, Job, AnalysisResponse } from '../types/financial'
+import type { UploadResponse, Job, AnalysisResponse, ExtractedDoc } from '../types/financial'
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
@@ -51,6 +51,11 @@ export const api = {
 
   deletePeriod: async (period: string): Promise<{ deleted: number; period: string }> => {
     const { data } = await http.delete(`/api/periods/${period}`)
+    return data
+  },
+
+  getDocuments: async (period: string): Promise<{ period: string; documents: ExtractedDoc[] }> => {
+    const { data } = await http.get(`/api/documents/${period}`)
     return data
   },
 }

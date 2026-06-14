@@ -18,7 +18,7 @@ import {
 } from 'recharts'
 import { api } from '../api/client'
 import UploadPage from './Upload'
-import type { FinancialReport, ExpenseCategory } from '../types/financial'
+import type { FinancialReport, ExpenseCategory, ExtractedDoc } from '../types/financial'
 
 const { Content, Header } = Layout
 const { Title, Text, Paragraph } = Typography
@@ -218,67 +218,54 @@ export default function DashboardPage() {
 
   const { body: summaryBody, citations } = parseSummary(report?.executiveSummary ?? '')
 
-  // Tile drill-down data
-  const tileDetails: Record<string, { columns: object[]; data: object[] }> = {
-    Revenue: {
-      columns: [
-        { title: 'Period', dataIndex: 'period', key: 'period' },
-        { title: 'Revenue', dataIndex: 'revenue', key: 'revenue', render: (v: number) => EUR(v) },
-      ],
-      data: loadedReports.map(r => ({ key: r.period, period: fmtPeriod(r.period), revenue: r.pnl.revenue })),
-    },
-    Expenses: {
-      columns: [
-        { title: 'Period', dataIndex: 'period', key: 'period' },
-        { title: 'Category', dataIndex: 'category', key: 'category' },
-        { title: 'Amount', dataIndex: 'amount', key: 'amount', render: (v: number) => EUR(v) },
-        { title: 'Share', dataIndex: 'pct', key: 'pct', render: (v: number) => `${v.toFixed(1)}%` },
-      ],
-      data: (report?.expenseBreakdown ?? []).map((e, i) => ({
-        key: i, period: report ? fmtPeriod(loadedReports[0]?.period ?? '') : '', category: e.category,
-        amount: e.amount, pct: e.percentage,
-      })),
-    },
-    'Net Profit': {
-      columns: [
-        { title: 'Period', dataIndex: 'period', key: 'period' },
-        { title: 'Revenue', dataIndex: 'revenue', key: 'revenue', render: (v: number) => EUR(v) },
-        { title: 'Expenses', dataIndex: 'expenses', key: 'expenses', render: (v: number) => EUR(v) },
-        { title: 'Net Profit', dataIndex: 'net', key: 'net', render: (v: number) => EUR(v) },
-        { title: 'Margin', dataIndex: 'margin', key: 'margin', render: (v: number) => `${v.toFixed(1)}%` },
-      ],
-      data: loadedReports.map(r => ({
-        key: r.period, period: fmtPeriod(r.period),
-        revenue: r.pnl.revenue, expenses: r.pnl.expenses,
-        net: r.pnl.netProfit, margin: r.pnl.grossMarginPct,
-      })),
-    },
-    'Cash Net': {
-      columns: [
-        { title: 'Period', dataIndex: 'period', key: 'period' },
-        { title: 'Operating', dataIndex: 'operating', key: 'operating', render: (v: number) => EUR(v) },
-        { title: 'Investing', dataIndex: 'investing', key: 'investing', render: (v: number) => EUR(v) },
-        { title: 'Financing', dataIndex: 'financing', key: 'financing', render: (v: number) => EUR(v) },
-        { title: 'Net', dataIndex: 'net', key: 'net', render: (v: number) => EUR(v) },
-      ],
-      data: loadedReports.map(r => ({
-        key: r.period, period: fmtPeriod(r.period),
-        operating: r.cashFlow.operating, investing: r.cashFlow.investing,
-        financing: r.cashFlow.financing, net: r.cashFlow.net,
-      })),
-    },
-    Invoices: {
-      columns: [
-        { title: 'Period', dataIndex: 'period', key: 'period' },
-        { title: 'Invoice Count', dataIndex: 'count', key: 'count' },
-        { title: 'Avg Value', dataIndex: 'avg', key: 'avg', render: (v: number) => EUR(v) },
-      ],
-      data: loadedReports.map(r => ({
-        key: r.period, period: fmtPeriod(r.period),
-        count: r.keyMetrics.invoiceCount, avg: r.keyMetrics.avgInvoiceValue,
-      })),
-    },
+  // Which doc_types to show per tile
+  const TILE_DOC_TYPES: Record<string, string[]> = {
+    Revenue:      ['sales'],
+    Expenses:     ['invoice', 'expense', 'payroll', 'payroll_register', 'payslip'],
+    'Net Profit': ['sales', 'invoice', 'expense', 'payroll', 'payroll_register', 'payslip'],
+    'Gross Margin': ['sales'],
+    'Cash Net':   ['bank_confirmation'],
+    Invoices:     ['sales', 'invoice', 'expense'],
   }
+
+  // Fetch documents for all selected periods when a tile is active
+  const docQueries = useQueries({
+    queries: (activeTile ? selectedPeriods : []).map(period => ({
+      queryKey: ['documents', period],
+      queryFn: () => api.getDocuments(period),
+      enabled: !!activeTile,
+    })),
+  })
+  const allDocs: (ExtractedDoc & { period: string })[] = docQueries
+    .flatMap((q, i) =>
+      (q.data?.documents ?? []).map(d => ({ ...d, period: selectedPeriods[i] }))
+    )
+  const docsLoading = docQueries.some(q => q.isLoading)
+
+  const DOC_COLUMNS = [
+    { title: 'File', dataIndex: 'source_file', key: 'source_file',
+      render: (v: string) => <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>{v.split('/').pop()}</Text> },
+    { title: 'Type', dataIndex: 'doc_type', key: 'doc_type',
+      render: (v: string) => {
+        const color: Record<string, string> = { sales: 'green', invoice: 'orange', expense: 'red', payroll: 'purple', payroll_register: 'purple', payslip: 'purple', bank_confirmation: 'blue', unknown: 'default' }
+        return <Tag color={color[v] ?? 'default'} style={{ fontSize: 10 }}>{v}</Tag>
+      }},
+    { title: 'Invoice #', dataIndex: 'invoice_number', key: 'invoice_number',
+      render: (v: string | null) => v ?? <Text type="secondary" style={{ fontSize: 11 }}>—</Text> },
+    { title: 'Counterparty', key: 'counterparty',
+      render: (_: unknown, d: ExtractedDoc) => d.vendor_name ?? d.recipient_name ?? '—' },
+    { title: 'Date', dataIndex: 'issue_date', key: 'issue_date',
+      render: (v: string | null) => v
+        ? v
+        : <Tag color="warning" style={{ fontSize: 10 }}>Not detected</Tag> },
+    { title: 'Amount', dataIndex: 'total_amount', key: 'total_amount',
+      align: 'right' as const,
+      render: (v: number, d: ExtractedDoc) => (
+        <span style={{ color: d.doc_type === 'sales' ? '#22c55e' : '#f43f5e' }}>{EUR(v)}</span>
+      )},
+    { title: 'Confidence', dataIndex: 'confidence', key: 'confidence',
+      render: (v: number) => <Text type="secondary" style={{ fontSize: 11 }}>{(v * 100).toFixed(0)}%</Text> },
+  ]
 
   return (
     <Layout style={{ minHeight: '100vh', background: bg }}>
@@ -429,15 +416,15 @@ export default function DashboardPage() {
                 { label: 'Invoices', value: report.keyMetrics.invoiceCount, color: '#a855f7', suffix: '', precision: 0, isCurrency: false },
               ].map((m) => (
                 <Col key={m.label} xs={12} sm={8} md={4}>
-                  <Tooltip title={tileDetails[m.label] ? 'Click for breakdown' : undefined}>
+                  <Tooltip title={TILE_DOC_TYPES[m.label] ? 'Click to view source documents' : undefined}>
                     <Card
                       size="small"
-                      hoverable={!!tileDetails[m.label]}
-                      onClick={() => tileDetails[m.label] && setActiveTile(m.label)}
+                      hoverable={!!TILE_DOC_TYPES[m.label]}
+                      onClick={() => TILE_DOC_TYPES[m.label] && setActiveTile(m.label)}
                       style={{
                         background: `linear-gradient(135deg, ${cardBg} 0%, ${m.color}18 100%)`,
                         border: `1px solid ${m.color}33`,
-                        cursor: tileDetails[m.label] ? 'pointer' : 'default',
+                        cursor: TILE_DOC_TYPES[m.label] ? 'pointer' : 'default',
                       }}
                     >
                       <Statistic
@@ -451,7 +438,7 @@ export default function DashboardPage() {
                         valueStyle={{ color: m.color, fontSize: 20, fontWeight: 600 }}
                         prefix={m.icon}
                       />
-                      {tileDetails[m.label] && (
+                      {TILE_DOC_TYPES[m.label] && (
                         <FileTextOutlined style={{ position: 'absolute', top: 8, right: 8, color: m.color, opacity: 0.5, fontSize: 11 }} />
                       )}
                     </Card>
@@ -632,13 +619,17 @@ export default function DashboardPage() {
         footer={null}
         width={700}
       >
-        {activeTile && tileDetails[activeTile] && (
-          <Table
-            size="small"
-            pagination={false}
-            columns={tileDetails[activeTile].columns as Parameters<typeof Table>[0]['columns']}
-            dataSource={tileDetails[activeTile].data as object[]}
-          />
+        {activeTile && (
+          docsLoading
+            ? <div style={{ textAlign: 'center', padding: 32 }}><Spin tip="Loading documents…" /></div>
+            : <Table
+                size="small"
+                pagination={{ pageSize: 20, size: 'small' }}
+                columns={DOC_COLUMNS}
+                dataSource={allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))}
+                rowKey={(d) => `${d.period}-${d.source_file}`}
+                locale={{ emptyText: 'No documents found for this category' }}
+              />
         )}
       </Modal>
 
