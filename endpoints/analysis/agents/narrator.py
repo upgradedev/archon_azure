@@ -107,8 +107,19 @@ def _foundry_agent_summary(prompt: str) -> str:
         credential=DefaultAzureCredential(),
     )
 
+    # Derive the connection ARM resource ID directly from the connection string parts:
+    #   https://<region>.api.azureml.ms;<subscription_id>;<resource_group>;<project_name>
+    # Bypasses client.connections.get() which requires connections/read RBAC that the
+    # managed identity does not have ("Azure AI Developer" role omits this action).
+    parts = conn_str.split(";")
+    conn_id = (
+        f"/subscriptions/{parts[1]}/resourceGroups/{parts[2]}"
+        f"/providers/Microsoft.MachineLearningServices/workspaces/{parts[3]}"
+        f"/connections/{search_conn}"
+    )
+
     search_tool = AzureAISearchTool(
-        index_connection_id=client.connections.get(connection_name=search_conn).id,
+        index_connection_id=conn_id,
         index_name=index_name,
         query_type="semantic",
         top_k=3,
