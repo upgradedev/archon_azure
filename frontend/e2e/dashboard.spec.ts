@@ -39,7 +39,8 @@ test.describe('Dashboard', () => {
     await expect(page.getByText('Archon')).toBeVisible()
     await page.getByText('Upload Documents').click()
     await expect(page.locator('.ant-drawer')).toBeVisible()
-    await expect(page.getByText('Reporting period')).toBeVisible()
+    await expect(page.getByText('Documents')).toBeVisible()
+    await expect(page.getByText('Extract & Analyze')).toBeVisible()
     // Close drawer
     await page.locator('.ant-drawer-close').click()
     await expect(page.locator('.ant-drawer')).not.toBeVisible()
