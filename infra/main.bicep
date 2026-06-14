@@ -37,6 +37,9 @@ param openaiLocation string = 'swedencentral'
 @secure()
 param openaiKey string = ''
 
+@description('Allowed CORS origins for the backend API (comma-separated). Empty string falls back to allow-all in local/dev.')
+param corsOrigins string = ''
+
 var prefix = 'archon'
 var tags = {
   project: 'archon'
@@ -300,8 +303,32 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
           { name: 'AZURE_AI_PROJECT_CONNECTION_STRING', secretRef: 'foundry-conn' }
           { name: 'AZURE_AI_SEARCH_CONNECTION_NAME', value: 'archon-search' }
         ]
+        probes: [
+          {
+            type: 'Liveness'
+            httpGet: { path: '/health', port: 8001, scheme: 'HTTP' }
+            periodSeconds: 30
+            failureThreshold: 3
+          }
+          {
+            type: 'Readiness'
+            httpGet: { path: '/health', port: 8001, scheme: 'HTTP' }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          }
+        ]
       }]
-      scale: { minReplicas: 1, maxReplicas: 3 }
+      scale: {
+        minReplicas: 1
+        maxReplicas: 3
+        rules: [
+          {
+            name: 'http-scale'
+            http: { metadata: { concurrentRequests: '10' } }
+          }
+        ]
+      }
     }
   }
   dependsOn: [acaEnv]
@@ -354,9 +381,34 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
           { name: 'ACA_JOB_NAME', value: '${prefix}-extraction-job' }
           { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
           { name: 'AZURE_SUBSCRIPTION_ID', value: subscription().subscriptionId }
+          { name: 'CORS_ORIGINS', value: corsOrigins }
+        ]
+        probes: [
+          {
+            type: 'Liveness'
+            httpGet: { path: '/health', port: 8000, scheme: 'HTTP' }
+            periodSeconds: 30
+            failureThreshold: 3
+          }
+          {
+            type: 'Readiness'
+            httpGet: { path: '/health', port: 8000, scheme: 'HTTP' }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          }
         ]
       }]
-      scale: { minReplicas: 1, maxReplicas: 3 }
+      scale: {
+        minReplicas: 1
+        maxReplicas: 3
+        rules: [
+          {
+            name: 'http-scale'
+            http: { metadata: { concurrentRequests: '10' } }
+          }
+        ]
+      }
     }
   }
   dependsOn: [acaEnv, analysisApp]

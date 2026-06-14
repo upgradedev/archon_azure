@@ -16,10 +16,9 @@ import logging
 from collections import defaultdict
 
 from models.financial import ExtractedDoc, EmployeeSummary, PayrollEventSummary
+from .constants import PAYROLL_TYPES
 
 log = logging.getLogger("archon.employee_agent")
-
-PAYROLL_TYPES = {"payroll_register", "bank_confirmation", "payslip", "payroll"}
 
 
 def build_employee_summaries(

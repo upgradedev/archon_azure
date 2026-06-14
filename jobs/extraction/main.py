@@ -33,8 +33,6 @@ from extractors.docx import DocxExtractor
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("archon.extraction")
 
-UPLOAD_ID = os.environ["UPLOAD_ID"]
-PERIOD = os.environ["PERIOD"]
 CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER", "archon")
 
 EXTRACTORS = [PdfExtractor(), DocxExtractor(), ImageExtractor()]
@@ -48,8 +46,8 @@ def _blob_client() -> BlobServiceClient:
     )
 
 
-def _list_raw_blobs() -> list[str]:
-    prefix = f"raw-docs/{PERIOD}/{UPLOAD_ID}/"
+def _list_raw_blobs(period: str, upload_id: str) -> list[str]:
+    prefix = f"raw-docs/{period}/{upload_id}/"
     container = _blob_client().get_container_client(CONTAINER)
     return [
         b.name for b in container.list_blobs(name_starts_with=prefix)
@@ -95,11 +93,21 @@ def _extract_blob(blob_name: str) -> dict | None:
 
 # ── main pipeline ─────────────────────────────────────────────────────────────
 
-def main():
-    log.info("=== Extraction job start — upload=%s period=%s ===", UPLOAD_ID, PERIOD)
+def main(upload_id: str | None = None, period: str | None = None) -> None:
+    """
+    Run the extraction pipeline.
+
+    Parameters are read from function arguments first, then env vars as fallback.
+    This makes the function safe to call from server.py in concurrent requests
+    without env-var mutation races (ADR-005).
+    """
+    upload_id = upload_id or os.environ["UPLOAD_ID"]
+    period = period or os.environ["PERIOD"]
+
+    log.info("=== Extraction job start — upload=%s period=%s ===", upload_id, period)
 
     # Step 1: extract raw blobs
-    raw_blobs = _list_raw_blobs()
+    raw_blobs = _list_raw_blobs(period, upload_id)
     log.info("Found %d blobs to process", len(raw_blobs))
     raw_docs = [r for b in raw_blobs if (r := _extract_blob(b)) is not None]
     log.info("Extracted %d documents", len(raw_docs))
@@ -125,23 +133,23 @@ def main():
     errors = sum(1 for r in validation_results if not r.passed and r.severity == "error")
     log.info("Validation: %d results, %d errors", len(validation_results), errors)
 
-    base = f"extracted/{PERIOD}/{UPLOAD_ID}"
+    base = f"extracted/{period}/{upload_id}"
 
     _put_json(f"{base}/documents.json", {
-        "period": PERIOD,
-        "upload_id": UPLOAD_ID,
+        "period": period,
+        "upload_id": upload_id,
         "documents": [d.model_dump() for d in typed_docs],
     })
 
     _put_json(f"{base}/events.json", {
-        "period": PERIOD,
-        "upload_id": UPLOAD_ID,
+        "period": period,
+        "upload_id": upload_id,
         "events": [e.model_dump() for e in events],
     })
 
     _put_json(f"{base}/validation.json", {
-        "period": PERIOD,
-        "upload_id": UPLOAD_ID,
+        "period": period,
+        "upload_id": upload_id,
         "results": [r.model_dump() for r in validation_results],
         "summary": {
             "total": len(validation_results),

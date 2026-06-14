@@ -23,10 +23,9 @@ from calendar import monthrange
 from datetime import date
 
 from models.financial import ExtractedDoc, ValidationResult
+from .constants import PAYROLL_TYPES
 
 log = logging.getLogger("archon.validator_agent")
-
-PAYROLL_TYPES = {"payroll_register", "bank_confirmation", "payslip", "payroll"}
 
 
 def run(period: str, docs: list[ExtractedDoc]) -> list[ValidationResult]:

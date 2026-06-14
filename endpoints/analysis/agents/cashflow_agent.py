@@ -10,8 +10,7 @@ operating inflows).
 """
 
 from models.financial import ExtractedDoc, CashFlow, MonthlyPnL
-
-PAYROLL_TYPES = {"payroll_register", "bank_confirmation", "payslip", "payroll"}
+from .constants import PAYROLL_TYPES
 
 
 def build_cashflow(period: str, docs: list[ExtractedDoc], pnl: MonthlyPnL) -> CashFlow:

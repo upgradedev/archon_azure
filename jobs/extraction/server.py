@@ -31,12 +31,9 @@ class ExtractRequest(BaseModel):
 
 
 def _run(job_id: str, upload_id: str, period: str) -> None:
-    import os
-    os.environ["UPLOAD_ID"] = upload_id
-    os.environ["PERIOD"] = period
     try:
         import main as extraction_main
-        extraction_main.main()
+        extraction_main.main(upload_id=upload_id, period=period)
         with _lock:
             _jobs[job_id]["status"] = "completed"
             _jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()

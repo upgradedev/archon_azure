@@ -8,31 +8,27 @@ Strategy:
 """
 
 import json
-import os
 import tempfile
 from pathlib import Path
 
 import pdfplumber
 import fitz  # PyMuPDF
-from openai import AzureOpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .base import BaseExtractor
-from .image import ImageExtractor, EXTRACTION_PROMPT, _clean_json, _safe_doc_type, _safe_float, _safe_line_items
-from models.document import ExtractedDocument, DocType, LineItem
+from .image import ImageExtractor, EXTRACTION_PROMPT
+from .utils import build_document, _clean_json
+from models.document import ExtractedDocument
 
 MIN_TEXT_CHARS = 80
 
 
 class PdfExtractor(BaseExtractor):
     def __init__(self):
+        from services.llm import get_client
         self.image_extractor = ImageExtractor()
-        self.client = AzureOpenAI(
-            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-            api_key=os.environ["AZURE_OPENAI_API_KEY"],
-            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-05-01-preview"),
-        )
-        self.model = os.getenv("AZURE_OPENAI_VISION_DEPLOYMENT", "gpt-4o")
+        self.client = get_client()
+        self.model_name = __import__("os").getenv("AZURE_OPENAI_VISION_DEPLOYMENT", "gpt-4o")
 
     def can_handle(self, path: Path) -> bool:
         return path.suffix.lower() == ".pdf"
@@ -52,33 +48,19 @@ class PdfExtractor(BaseExtractor):
             + EXTRACTION_PROMPT
         )
         response = self.client.chat.completions.create(
-            model=self.model,
+            model=self.model_name,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2048,
             temperature=0.1,
         )
         raw = response.choices[0].message.content or "{}"
         data = json.loads(_clean_json(raw))
-        return ExtractedDocument(
+        return build_document(
             source_file=path.name,
-            doc_type=_safe_doc_type(data.get("doc_type")),
-            detected_language=data.get("detected_language") or "el",
-            issue_date=data.get("issue_date") or None,
-            vendor_name=data.get("vendor_name") or None,
-            vendor_tax_id=data.get("vendor_tax_id") or None,
-            recipient_name=data.get("recipient_name") or None,
-            currency=data.get("currency") or "EUR",
-            subtotal=_safe_float(data.get("subtotal")),
-            vat_amount=_safe_float(data.get("vat_amount")),
-            vat_rate_pct=_safe_float(data.get("vat_rate_pct")),
-            total_amount=_safe_float(data.get("total_amount")) or 0.0,
-            line_items=_safe_line_items(data.get("line_items")),
-            payment_due_date=data.get("payment_due_date") or None,
-            invoice_number=data.get("invoice_number") or None,
-            notes=data.get("notes") or None,
+            data=data,
+            extraction_model=self.model_name,
             raw_text_excerpt=text[:500],
-            extraction_model=self.model,
-            confidence=float(data.get("confidence") or 0.9),
+            default_confidence=0.9,
         )
 
     def _extract_via_vision(self, path: Path) -> ExtractedDocument:

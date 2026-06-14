@@ -13,11 +13,11 @@ from collections import defaultdict
 from models.financial import (
     ExtractedDoc, MonthlyPnL, ExpenseCategory, VendorSummary, KeyMetrics,
 )
+from .constants import PAYROLL_TYPES
 
 EXPENSE_DOC_TYPES = {"invoice", "expense", "payroll", "payroll_register",
                      "bank_confirmation", "payslip"}
 REVENUE_DOC_TYPES = {"sales"}
-PAYROLL_TYPES = {"payroll_register", "bank_confirmation", "payslip", "payroll"}
 
 
 def build_pnl(period: str, docs: list[ExtractedDoc]) -> MonthlyPnL:

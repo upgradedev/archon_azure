@@ -16,7 +16,7 @@ class AnalyzeRequest(BaseModel):
 async def trigger_analysis(req: AnalyzeRequest):
     """Call the Azure Container Apps analysis endpoint."""
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             resp = await client.post(
                 f"{ANALYSIS_ENDPOINT_URL}/analyze",
                 json={"period": req.period},
@@ -31,7 +31,7 @@ async def trigger_analysis(req: AnalyzeRequest):
 async def get_report(period: str):
     """Fetch a completed financial report for a period."""
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             resp = await client.get(f"{ANALYSIS_ENDPOINT_URL}/reports/{period}")
             resp.raise_for_status()
             return resp.json()

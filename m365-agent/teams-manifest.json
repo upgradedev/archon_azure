@@ -5,7 +5,7 @@
   "id": "a3f2c8d1-5b7e-4f9a-8c6d-2e1b4a7f3d9c",
   "packageName": "com.archon.financial.intelligence",
   "developer": {
-    "name": "Efthymios Fousekis",
+    "name": "Archon Platform",
     "websiteUrl": "https://github.com/upgradedev/archon_azure",
     "privacyUrl": "https://github.com/upgradedev/archon_azure/blob/master/LICENSE",
     "termsOfUseUrl": "https://github.com/upgradedev/archon_azure/blob/master/LICENSE"
@@ -27,7 +27,7 @@
     "declarativeAgents": [
       {
         "id": "ArchonFinancialIntelligence",
-        "file": "declarativeAgent.json"
+        "file": "manifest.json"
       }
     ]
   },

@@ -80,6 +80,7 @@ def build_summary(report: FinancialReport) -> str:
 # Foundry agent path  (azure-ai-projects SDK)
 # ─────────────────────────────────────────────────────────────────────────────
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
 def _foundry_agent_summary(prompt: str) -> str:
     """
     Run a single-turn Foundry agent with AzureAISearch grounding.
@@ -141,8 +142,8 @@ def _foundry_agent_summary(prompt: str) -> str:
             agent_id=agent.id,
         )
 
-        # Poll until terminal state (create_and_process_run blocks, but be safe)
-        _wait_for_run(client, thread.id, run.id)
+        if run.status != "completed":
+            raise RuntimeError(f"Foundry run ended with status={run.status}")
 
         messages = client.agents.list_messages(thread_id=thread.id)
         # Last assistant message contains the summary text + citation annotations
@@ -171,7 +172,10 @@ def _foundry_agent_summary(prompt: str) -> str:
         raise RuntimeError("Foundry agent returned no assistant message")
 
     finally:
-        client.agents.delete_agent(agent.id)
+        try:
+            client.agents.delete_agent(agent.id)
+        except Exception:
+            pass
 
 
 def _wait_for_run(client, thread_id: str, run_id: str, timeout: int = 90) -> None:
