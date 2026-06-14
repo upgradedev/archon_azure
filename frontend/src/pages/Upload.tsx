@@ -2,12 +2,17 @@ import { useState, useEffect } from 'react'
 import {
   Layout, Typography, Upload as AntUpload, Button, DatePicker,
   Steps, Card, Space, Alert, Tag, theme, Progress, Tooltip,
+  Table, Select, Checkbox,
 } from 'antd'
-import { InboxOutlined, RocketOutlined, CheckCircleOutlined, EditOutlined, CalendarOutlined } from '@ant-design/icons'
+import {
+  InboxOutlined, RocketOutlined, CheckCircleOutlined,
+  EditOutlined, CalendarOutlined, WarningOutlined, CheckOutlined,
+} from '@ant-design/icons'
 import type { UploadFile } from 'antd'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 import JobStatus from '../components/JobStatus'
+import type { ExtractedDoc, DocType, CompanyProfile } from '../types/financial'
 
 const { Content } = Layout
 const { Title, Text } = Typography
@@ -19,6 +24,38 @@ const MONTH_NAMES = [
   'january', 'february', 'march', 'april', 'may', 'june',
   'july', 'august', 'september', 'october', 'november', 'december',
 ]
+
+const DOC_TYPE_OPTIONS: { value: DocType; label: string }[] = [
+  { value: 'sales',            label: 'Sales Invoice' },
+  { value: 'invoice',          label: 'Purchase Invoice' },
+  { value: 'expense',          label: 'Expense' },
+  { value: 'payroll_register', label: 'Payroll Register' },
+  { value: 'payslip',          label: 'Payslip' },
+  { value: 'payroll',          label: 'Payroll' },
+  { value: 'bank_confirmation',label: 'Bank Confirmation' },
+  { value: 'account_statement',label: 'Account Statement' },
+  { value: 'unknown',          label: 'Unknown' },
+]
+
+type MatchStatus = 'matched' | 'unrelated' | 'unconfigured'
+
+interface ReviewRow extends ExtractedDoc {
+  _key: string
+  _include: boolean
+  _docType: DocType
+  _status: MatchStatus
+}
+
+function matchStatus(doc: ExtractedDoc, profile: CompanyProfile): MatchStatus {
+  const normName = (profile.company_name || '').trim().toLowerCase()
+  const normTax  = (profile.company_tax_id || '').replace(/\D/g, '')
+  if (!normName && !normTax) return 'unconfigured'
+  const vendorTax = (doc.vendor_tax_id || '').replace(/\D/g, '')
+  if (normTax && vendorTax === normTax) return 'matched'
+  if (normName && (doc.vendor_name  || '').toLowerCase().includes(normName)) return 'matched'
+  if (normName && (doc.recipient_name || '').toLowerCase().includes(normName)) return 'matched'
+  return 'unrelated'
+}
 
 function detectPeriodFromFiles(files: UploadFile[]): string {
   for (const file of files) {
@@ -32,7 +69,6 @@ function detectPeriodFromFiles(files: UploadFile[]): string {
       }
     }
   }
-  // Default: previous month
   const d = new Date()
   d.setMonth(d.getMonth() - 1)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -49,20 +85,23 @@ interface UploadPageProps {
 
 export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const { token } = useToken()
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [fileList, setFileList]           = useState<UploadFile[]>([])
   const [detectedPeriod, setDetectedPeriod] = useState<string>('')
   const [editingPeriod, setEditingPeriod] = useState(false)
-  const [step, setStep] = useState(0)
-  const [jobId, setJobId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [uploadPct, setUploadPct] = useState(0)
+  const [step, setStep]                   = useState(0)
+  const [jobId, setJobId]                 = useState<string | null>(null)
+  const [error, setError]                 = useState<string | null>(null)
+  const [submitting, setSubmitting]       = useState(false)
+  const [uploadPct, setUploadPct]         = useState(0)
 
-  // Auto-detect period whenever file list changes
+  // Review step state
+  const [reviewRows, setReviewRows]       = useState<ReviewRow[]>([])
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [confirming, setConfirming]       = useState(false)
+
   useEffect(() => {
-    if (fileList.length > 0) {
-      setDetectedPeriod(detectPeriodFromFiles(fileList))
-    }
+    if (fileList.length > 0) setDetectedPeriod(detectPeriodFromFiles(fileList))
   }, [fileList])
 
   const handleSubmit = async () => {
@@ -83,10 +122,121 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
     }
   }
 
-  const handleJobComplete = () => {
+  const handleJobComplete = async () => {
     setStep(2)
-    setTimeout(() => onComplete?.(detectedPeriod), 1500)
+    setReviewLoading(true)
+    try {
+      const [docsResp, profile] = await Promise.all([
+        api.getDocuments(detectedPeriod),
+        api.getCompanyProfile(),
+      ])
+      setCompanyProfile(profile)
+      const rows: ReviewRow[] = docsResp.documents.map((doc, i) => ({
+        ...doc,
+        _key: `${i}::${doc.source_file}`,
+        _include: true,
+        _docType: doc.doc_type,
+        _status: matchStatus(doc, profile),
+      }))
+      setReviewRows(rows)
+    } catch {
+      // If review fetch fails, skip to done
+      setStep(3)
+      setTimeout(() => onComplete?.(detectedPeriod), 1000)
+    } finally {
+      setReviewLoading(false)
+    }
   }
+
+  const updateRow = (key: string, patch: Partial<ReviewRow>) =>
+    setReviewRows(prev => prev.map(r => r._key === key ? { ...r, ...patch } : r))
+
+  const handleConfirm = async () => {
+    setConfirming(true)
+    try {
+      const approved = reviewRows
+        .filter(r => r._include)
+        .map(r => ({ ...r, doc_type: r._docType } as ExtractedDoc))
+
+      const hasChanges = reviewRows.some(r => !r._include || r._docType !== r.doc_type)
+      if (hasChanges) {
+        await api.updateDocuments(detectedPeriod, approved)
+      }
+    } catch {
+      // Proceed regardless — analysis will use original extraction
+    } finally {
+      setConfirming(false)
+      setStep(3)
+      setTimeout(() => onComplete?.(detectedPeriod), 1000)
+    }
+  }
+
+  const unrelated = reviewRows.filter(r => r._status === 'unrelated')
+  const included  = reviewRows.filter(r => r._include)
+
+  const REVIEW_COLUMNS = [
+    {
+      title: '',
+      key: 'include',
+      width: 40,
+      render: (_: unknown, row: ReviewRow) => (
+        <Checkbox
+          checked={row._include}
+          onChange={e => updateRow(row._key, { _include: e.target.checked })}
+        />
+      ),
+    },
+    {
+      title: 'File',
+      key: 'file',
+      render: (_: unknown, row: ReviewRow) => (
+        <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>
+          {row.source_file.split('/').pop()}
+        </Text>
+      ),
+    },
+    {
+      title: 'Type',
+      key: 'type',
+      width: 180,
+      render: (_: unknown, row: ReviewRow) => (
+        <Select<DocType>
+          size="small"
+          value={row._docType}
+          onChange={v => updateRow(row._key, { _docType: v })}
+          options={DOC_TYPE_OPTIONS}
+          style={{ width: '100%' }}
+          onClick={e => e.stopPropagation()}
+        />
+      ),
+    },
+    {
+      title: 'Vendor',
+      key: 'vendor',
+      render: (_: unknown, row: ReviewRow) => (
+        <Text style={{ fontSize: 12 }}>{row.vendor_name ?? <Text type="secondary">—</Text>}</Text>
+      ),
+    },
+    {
+      title: 'Recipient',
+      key: 'recipient',
+      render: (_: unknown, row: ReviewRow) => (
+        <Text style={{ fontSize: 12 }}>{row.recipient_name ?? <Text type="secondary">—</Text>}</Text>
+      ),
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      width: 110,
+      render: (_: unknown, row: ReviewRow) => {
+        if (row._status === 'matched')
+          return <Tag color="green" icon={<CheckOutlined />}>Matched</Tag>
+        if (row._status === 'unrelated')
+          return <Tag color="orange" icon={<WarningOutlined />}>Review</Tag>
+        return <Tag color="default">—</Tag>
+      },
+    },
+  ]
 
   const inner = (
     <Space direction="vertical" size={24} style={{ width: '100%' }}>
@@ -102,10 +252,12 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
         items={[
           { title: 'Select documents' },
           { title: 'Extracting data' },
-          { title: 'Ready', icon: step === 2 ? <CheckCircleOutlined /> : undefined },
+          { title: 'Review documents' },
+          { title: 'Ready', icon: step === 3 ? <CheckCircleOutlined /> : undefined },
         ]}
       />
 
+      {/* ── Step 0: file selection ──────────────────────────────────── */}
       {step === 0 && (
         <Card>
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -134,7 +286,6 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
               </Space>
             )}
 
-            {/* Detected period — shown after files are dropped */}
             {fileList.length > 0 && detectedPeriod && (
               <div style={{
                 background: token.colorFillAlter,
@@ -208,11 +359,71 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
         </Card>
       )}
 
+      {/* ── Step 1: extraction running ──────────────────────────────── */}
       {step === 1 && jobId && (
         <JobStatus jobId={jobId} onComplete={handleJobComplete} />
       )}
 
+      {/* ── Step 2: document review ─────────────────────────────────── */}
       {step === 2 && (
+        <Card
+          title="Review extracted documents"
+          loading={reviewLoading}
+        >
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            {!reviewLoading && (
+              <>
+                {companyProfile && !companyProfile.company_name && !companyProfile.company_tax_id && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="Company profile not configured"
+                    description="Set COMPANY_NAME and COMPANY_TAX_ID on the analysis service to enable automatic document matching."
+                  />
+                )}
+
+                {unrelated.length > 0 && (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    icon={<WarningOutlined />}
+                    message={`${unrelated.length} document${unrelated.length !== 1 ? 's' : ''} may not belong to ${companyProfile?.company_name || 'your company'}`}
+                    description="Review the highlighted rows below. Uncheck any document you want to exclude from analysis."
+                  />
+                )}
+
+                <Table<ReviewRow>
+                  size="small"
+                  pagination={false}
+                  columns={REVIEW_COLUMNS}
+                  dataSource={reviewRows}
+                  rowKey={r => r._key}
+                  rowClassName={r => r._status === 'unrelated' && r._include ? 'row-warn' : ''}
+                  scroll={{ x: 700 }}
+                />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {included.length} of {reviewRows.length} documents will be analysed
+                  </Text>
+                  <Button
+                    type="primary"
+                    loading={confirming}
+                    disabled={included.length === 0}
+                    onClick={handleConfirm}
+                    icon={<CheckCircleOutlined />}
+                  >
+                    Confirm {included.length} document{included.length !== 1 ? 's' : ''}
+                  </Button>
+                </div>
+              </>
+            )}
+          </Space>
+        </Card>
+      )}
+
+      {/* ── Step 3: done ────────────────────────────────────────────── */}
+      {step === 3 && (
         <Alert
           type="success"
           message="Extraction complete — returning to dashboard…"

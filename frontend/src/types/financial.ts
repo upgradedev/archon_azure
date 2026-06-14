@@ -24,6 +24,11 @@ export interface ExtractedDoc {
   statement_balance: number | null
 }
 
+export interface CompanyProfile {
+  company_name: string
+  company_tax_id: string
+}
+
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
 
 export interface UploadedFile {

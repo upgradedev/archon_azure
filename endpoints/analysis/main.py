@@ -210,6 +210,48 @@ def delete_period(period: str):
     return {"deleted": deleted, "period": period}
 
 
+@app.get("/company-profile")
+def company_profile():
+    """Return the configured company identity used for document classification."""
+    return {"company_name": settings.company_name, "company_tax_id": settings.company_tax_id}
+
+
+class DocumentUpdateRequest(BaseModel):
+    documents: list[ExtractedDoc]
+
+
+@app.put("/documents/{period}")
+def update_documents(period: str, req: DocumentUpdateRequest):
+    """
+    Overwrite extracted documents for a period after user review.
+    Deletes all existing documents.json blobs under the period prefix and
+    writes a single consolidated reviewed/documents.json with the approved list.
+    """
+    container = _blob_client().get_container_client(settings.azure_storage_container)
+    prefix = f"extracted/{period}/"
+
+    deleted = 0
+    for blob in container.list_blobs(name_starts_with=prefix):
+        if blob.name.endswith("documents.json"):
+            container.delete_blob(blob.name)
+            deleted += 1
+
+    blob_name = f"extracted/{period}/reviewed/documents.json"
+    payload = {
+        "documents": [d.model_dump() for d in req.documents],
+        "upload_id": "reviewed",
+        "period": period,
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    _blob_client().get_blob_client(
+        container=settings.azure_storage_container, blob=blob_name
+    ).upload_blob(body, overwrite=True)
+
+    log.info("Documents updated — period=%s approved=%d deleted_blobs=%d",
+             period, len(req.documents), deleted)
+    return {"period": period, "documents": len(req.documents), "deleted_blobs": deleted}
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "archon-analysis-azure", "version": "2.1.0"}

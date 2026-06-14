@@ -82,6 +82,45 @@ async def delete_period(
         raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
 
 
+@router.get("/company-profile")
+async def get_company_profile(_claims: dict = Depends(validate_entra_token)):
+    """Return the configured company identity used for document classification."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{ANALYSIS_ENDPOINT_URL}/company-profile")
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:300]) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
+
+
+class DocumentUpdateRequest(BaseModel):
+    documents: list
+
+
+@router.put("/documents/{period}")
+async def update_documents(
+    period: str,
+    req: DocumentUpdateRequest,
+    _claims: dict = Depends(validate_entra_token),
+):
+    """Overwrite extracted documents after user review (exclusions + type overrides)."""
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.put(
+                f"{ANALYSIS_ENDPOINT_URL}/documents/{period}",
+                json={"documents": req.documents},
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:300]) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
+
+
 @router.get("/reports/{period}")
 async def get_report(
     period: str,
