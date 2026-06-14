@@ -83,7 +83,9 @@ def _extract_blob(blob_name: str) -> dict | None:
             return None
         log.info("Extracting %s with %s", filename, type(extractor).__name__)
         doc = extractor.extract(tmp_path)
-        return doc.model_dump()
+        result = doc.model_dump()
+        result["source_file"] = blob_name  # replace temp path with original blob path
+        return result
     except Exception as exc:
         log.error("Failed to extract %s: %s", filename, exc)
         return None

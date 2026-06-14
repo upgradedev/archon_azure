@@ -41,6 +41,12 @@ param openaiKey string = ''
 @description('Allowed CORS origins for the backend API (comma-separated). Empty string falls back to allow-all in local/dev.')
 param corsOrigins string = ''
 
+@description('Company name used by the classifier to identify sales documents (vendor matches this name). Leave empty to disable auto-matching.')
+param companyName string = ''
+
+@description('Company VAT/tax ID used by the classifier for sales document identification. Digits only, no prefix (e.g. 800000001).')
+param companyTaxId string = ''
+
 var prefix = 'archon'
 var tags = {
   project: 'archon'
@@ -306,6 +312,8 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
           { name: 'AZURE_AI_PROJECT_CONNECTION_STRING', secretRef: 'foundry-conn' }
           { name: 'AZURE_AI_SEARCH_CONNECTION_NAME', value: 'archon-search' }
           { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+          { name: 'COMPANY_NAME', value: companyName }
+          { name: 'COMPANY_TAX_ID', value: companyTaxId }
         ]
         probes: [
           {

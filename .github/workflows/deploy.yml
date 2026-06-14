@@ -98,6 +98,8 @@ jobs:
                   environment="${{ github.event.inputs.environment || 'prod' }}" \
                   openaiLocation="swedencentral" \
                   openaiKey="${{ steps.openai_key.outputs.key }}" \
+                  companyName="${{ secrets.COMPANY_NAME || '' }}" \
+                  companyTaxId="${{ secrets.COMPANY_TAX_ID || '' }}" \
               --output json 2>/tmp/arm_stderr.txt)
             EXIT_CODE=$?
             if [ $EXIT_CODE -eq 0 ]; then
