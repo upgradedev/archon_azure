@@ -164,8 +164,9 @@ def health():
 @app.get("/health/foundry")
 def health_foundry():
     """
-    Diagnostic endpoint — tests the Foundry IQ connection without exposing secrets.
-    Returns the connection string shape (redacted) and the first error encountered.
+    Diagnostic — runs the full Foundry IQ narrator path with a minimal test prompt
+    and returns either the summary or the exact exception at each stage.
+    Stages: env-var → client init → search tool build → agent create → run.
     """
     conn_str = os.environ.get("AZURE_AI_PROJECT_CONNECTION_STRING", "")
     result: dict = {
@@ -175,8 +176,7 @@ def health_foundry():
         "search_conn_name": os.environ.get("AZURE_AI_SEARCH_CONNECTION_NAME", "(not set)"),
         "search_index": os.environ.get("AZURE_AI_SEARCH_INDEX", "(not set)"),
         "deployment": os.environ.get("AZURE_OPENAI_ANALYSIS_DEPLOYMENT", "(not set)"),
-        "client_ok": False,
-        "connections_ok": False,
+        "stage": "env-check",
         "error": None,
     }
     if not conn_str.strip():
@@ -185,22 +185,62 @@ def health_foundry():
 
     try:
         from azure.ai.projects import AIProjectClient
-        from azure.ai.projects.models import AzureAISearchTool
+        from azure.ai.projects.models import AzureAISearchTool, MessageRole
         from azure.identity import DefaultAzureCredential
 
+        result["stage"] = "client-init"
         client = AIProjectClient.from_connection_string(
             conn_str=conn_str,
             credential=DefaultAzureCredential(),
         )
-        result["client_ok"] = True
 
-        search_conn_name = os.environ.get("AZURE_AI_SEARCH_CONNECTION_NAME", "archon-search")
-        conn = client.connections.get(connection_name=search_conn_name)
-        result["connections_ok"] = True
-        result["search_conn_id"] = conn.id[:40] + "..." if len(conn.id) > 40 else conn.id
+        result["stage"] = "search-tool-build"
+        search_conn = os.environ.get("AZURE_AI_SEARCH_CONNECTION_NAME", "archon-search")
+        index_name  = os.environ.get("AZURE_AI_SEARCH_INDEX", "archon-knowledge")
+        deployment  = os.environ.get("AZURE_OPENAI_ANALYSIS_DEPLOYMENT", "gpt-4o")
+        parts   = conn_str.split(";")
+        conn_id = (
+            f"/subscriptions/{parts[1]}/resourceGroups/{parts[2]}"
+            f"/providers/Microsoft.MachineLearningServices/workspaces/{parts[3]}"
+            f"/connections/{search_conn}"
+        )
+        result["derived_conn_id"] = conn_id[-60:]
+        search_tool = AzureAISearchTool(index_connection_id=conn_id, index_name=index_name,
+                                        query_type="semantic", top_k=3)
+
+        result["stage"] = "agent-create"
+        agent = client.agents.create_agent(
+            model=deployment, name="archon-diag-test",
+            instructions="You are a test agent. Reply with one sentence only.",
+            tools=search_tool.definitions, tool_resources=search_tool.resources,
+        )
+        result["agent_id"] = agent.id
+
+        result["stage"] = "run"
+        thread = client.agents.create_thread()
+        client.agents.create_message(thread_id=thread.id, role=MessageRole.USER,
+                                     content="Say: Foundry IQ is working.")
+        run = client.agents.create_and_process_run(thread_id=thread.id, agent_id=agent.id)
+        result["run_status"] = run.status
+
+        try:
+            client.agents.delete_agent(agent.id)
+        except Exception:
+            pass
+
+        if run.status == "completed":
+            msgs = client.agents.list_messages(thread_id=thread.id)
+            for msg in reversed(msgs.data):
+                if msg.role == MessageRole.ASSISTANT:
+                    for block in msg.content:
+                        if hasattr(block, "text"):
+                            result["foundry_reply"] = block.text.value[:200]
+            result["foundry_ok"] = True
+        else:
+            result["error"] = f"Run ended with status={run.status}"
 
     except Exception as exc:
-        result["error"] = f"{type(exc).__name__}: {exc}"
+        result["error"] = f"{type(exc).__name__}: {str(exc)[:400]}"
 
     return result
 
