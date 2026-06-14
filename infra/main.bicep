@@ -10,6 +10,7 @@
 //   - Azure Container Apps (analysis endpoint + backend)
 //   - Azure AI Search (Foundry IQ knowledge index)
 //   - Azure OpenAI (GPT-4o deployments)
+//   - Azure Static Web App (React frontend)
 //
 // Deploy:
 //   az deployment group create \
@@ -494,6 +495,19 @@ resource kvSecretFoundryConn 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   }
 }
 
+// ── Static Web App (React frontend) ──────────────────────────────────────────
+
+resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
+  name: '${prefix}-frontend-${uniqueString(resourceGroup().id)}'
+  location: location
+  tags: tags
+  sku: {
+    name: 'Free'
+    tier: 'Free'
+  }
+  properties: {}
+}
+
 // ── Application Insights ──────────────────────────────────────────────────────
 
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
@@ -521,3 +535,5 @@ output foundryProjectName string = foundryProject.name
 output foundryConnectionString string = '${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}'
 output keyVaultUri string = keyVault.properties.vaultUri
 output appInsightsConnectionString string = appInsights.properties.ConnectionString
+output staticWebAppUrl string = 'https://${staticWebApp.properties.defaultHostname}'
+output staticWebAppName string = staticWebApp.name
