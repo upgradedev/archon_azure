@@ -10,19 +10,22 @@ Archon (Αρχων — Greek for "ruler/chief") is an agentic financial intellig
 
 ---
 
-## The Core Insight — The 28% Problem
+## The Core Insight — The Multi-Stream Payroll Problem
 
-A bank payroll transfer confirmation shows €3,994.74 paid to employees. That's the number most businesses record. But the true employer payroll cost — gross wages plus IKA/EFKA social insurance contributions — is €6,930.00. **A difference of 73.5%.** Without Archon, that cost is systematically understated in every P&L.
+A single payroll period cannot be understood from any one document. Each document type captures a different, non-overlapping slice of the truth:
 
-Archon's **EventLinkerAgent** links the three document types that together describe a single payroll event:
+| Document stream | What it shows | What it misses |
+|---|---|---|
+| Bank confirmation | Net cash transferred to employee accounts | Employer EFKA/social-insurance contribution (separate institutional transfer) |
+| Payroll register | Full gross wages + employer contribution (true cost) | Actual cash flow timing |
+| Individual payslips | Per-employee gross/net/deduction breakdown | Aggregate employer cost |
+| Tax authority records | Income-tax withholdings remitted | Salary structure |
 
-| Document | Shows |
-|---|---|
-| Bank confirmation | Net cash actually transferred |
-| Payroll register | Gross + IKA employer contributions (true cost) |
-| Individual payslips | Per-employee breakdown |
+These are **four separate payment streams** to four different counterparties. They cannot be matched by date, amount, or counterparty — they require correlation by company, period, and Greek regulatory logic (EFKA contributions under Law 4387/2016, income-tax withholdings under Greek IRS rules).
 
-Only by fusing all three can the true employer cost be accurately captured.
+Without correlating all streams, an SMB reading only the bank statement systematically **understates payroll expense** and overstates profit — because the bank shows only the employee net transfer, not the employer's contribution to EFKA or the tax authority.
+
+Archon's **EventLinkerAgent** performs this correlation automatically, fusing all four streams into a single accurate payroll event per period.
 
 ---
 
@@ -269,7 +272,9 @@ The Nebius version of this project is at: [`repos/nebius/`](../nebius/)
 ## Submission Details
 
 - **Contest:** Microsoft Agents League @ AI Skills Fest 2026
-- **Track:** Reasoning Agents (Microsoft Foundry)
-- **Microsoft IQ:** Foundry IQ (Azure AI Search grounding in NarratorAgent)
+- **Tracks:** Reasoning Agents (Microsoft Foundry) · Enterprise Agents (Microsoft 365 Copilot)
+- **Microsoft IQ:** Foundry IQ — AzureAISearchTool in NarratorAgent (Best Use of IQ Tools candidate)
+- **Live demo:** https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health
+- **Architecture diagram:** [docs/architecture.svg](docs/architecture.svg)
 - **License:** MIT
-- **Author:** Efthymios Fousekis
+- **Author:** Efthymios Fousekis (tf@upgrade.net.gr)
