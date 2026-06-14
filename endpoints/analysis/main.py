@@ -187,12 +187,23 @@ def list_periods():
 
 
 @app.get("/documents/{period}")
-def list_documents(period: str):
-    """Return classified extracted documents for a period — used by UI tile drill-down."""
+def list_documents(
+    period: str,
+    company_name: str = "",
+    company_tax_id: str = "",
+):
+    """Return classified extracted documents for a period — used by UI tile drill-down.
+
+    company_name / company_tax_id are forwarded by the backend from the
+    tenant-specific blob profile so classification matches the /analyze result.
+    Falls back to env-var defaults when not supplied (dev/demo mode).
+    """
     docs = _load_documents(period)
     if not docs:
         raise HTTPException(status_code=404, detail=f"No extracted documents for period {period}")
-    classified = classify(docs, settings.company_tax_id, settings.company_name)
+    effective_name = company_name or settings.company_name
+    effective_tax_id = company_tax_id or settings.company_tax_id
+    classified = classify(docs, effective_tax_id, effective_name)
     return {
         "period": period,
         "documents": [d.model_dump() for d in classified],

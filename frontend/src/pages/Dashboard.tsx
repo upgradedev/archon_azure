@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Layout, Typography, Row, Col, Card, Button, Spin, Select,
-  Drawer, Space, Statistic, Tag, Alert, Divider, theme, Tooltip,
-  Modal, Table, Form, Input,
+  Space, Statistic, Tag, Alert, Divider, theme, Tooltip,
+  Modal, Table, Form, Input, Drawer,
 } from 'antd'
 import {
   UploadOutlined, ThunderboltOutlined, RobotOutlined,
@@ -246,22 +246,28 @@ export default function DashboardPage() {
 
   // Definitions shown on tile info icon hover
   const TILE_TOOLTIPS: Record<string, string> = {
-    Revenue: 'Total value of sales invoices and service billing issued by the company in the selected period.',
-    Expenses: 'All outgoings: purchase invoices, employer payroll cost (from payroll register, not bank transfer), and other expense documents.',
-    'Net Profit': 'Revenue minus total expenses. Positive = profitable period; negative = loss-making.',
-    'Gross Margin': 'Net Profit as a percentage of Revenue. Measures how efficiently revenue converts to profit after all costs.',
-    'Cash Net': 'Actual net cash movement recorded on bank confirmation documents — operating + investing + financing flows combined.',
-    Invoices: 'Total count of financial documents analysed: sales invoices + purchase invoices + expense receipts.',
+    Revenue: 'Net revenue ex-VAT from sales invoices issued by the company. VAT is excluded — it is collected on behalf of the tax authority.',
+    Expenses: 'All outgoings: purchase invoices + employer payroll cost from the payroll register (includes IKA/EFKA contributions, not just the bank transfer net).',
+    'Net Profit': 'Revenue (ex-VAT) minus total expenses. Positive = profitable period; negative = loss-making.',
+    'Net Margin': 'Net Profit as a percentage of Revenue (ex-VAT). For service companies without inventory, this equals the gross margin.',
+    'Cash Net': 'Estimated net operating cash: sales receipts minus bank payroll transfers and purchase invoices. Upload bank confirmation documents for actual cash figures.',
+    Invoices: 'Total financial documents processed: sales invoices + purchase invoices + expense receipts.',
   }
 
-  // Which doc_types to show per tile
+  // Which doc_types to show per tile (must match what the metric counts)
   const TILE_DOC_TYPES: Record<string, string[]> = {
     Revenue:      ['sales'],
     Expenses:     ['invoice', 'expense', 'payroll', 'payroll_register', 'payslip'],
     'Net Profit': ['sales', 'invoice', 'expense', 'payroll', 'payroll_register', 'payslip'],
-    'Gross Margin': ['sales'],
+    'Net Margin': ['sales'],
     'Cash Net':   ['bank_confirmation'],
     Invoices:     ['sales', 'invoice', 'expense'],
+  }
+
+  const TILE_EMPTY_TEXT: Record<string, string> = {
+    Revenue:     'No sales invoices found. Set your company name and tax ID in Settings (⚙) so the classifier can identify your sales documents.',
+    'Net Margin':'No sales invoices found. Set your company name and tax ID in Settings (⚙).',
+    'Cash Net':  'No bank confirmation documents uploaded. Cash Net is estimated from revenue minus expenses when no bank docs are present.',
   }
 
   // Fetch documents for all selected periods when a tile is active
@@ -456,7 +462,7 @@ export default function DashboardPage() {
                   color: report.pnl.netProfit >= 0 ? '#22c55e' : '#f43f5e', suffix: '',
                   icon: report.pnl.netProfit >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />,
                 },
-                { label: 'Gross Margin', value: report.pnl.grossMarginPct, color: '#f59e0b', suffix: '%', precision: 1 },
+                { label: 'Net Margin', value: report.pnl.grossMarginPct, color: '#f59e0b', suffix: '%', precision: 1 },
                 { label: 'Cash Net', value: report.cashFlow.net, color: '#38bdf8', suffix: '' },
                 { label: 'Invoices', value: report.keyMetrics.invoiceCount, color: '#a855f7', suffix: '', precision: 0, isCurrency: false },
               ].map((m) => (
@@ -725,15 +731,16 @@ export default function DashboardPage() {
         </Space>
       </Drawer>
 
-      {/* ── Upload drawer ────────────────────────────────────── */}
-      <Drawer
+      {/* ── Upload modal ─────────────────────────────────────── */}
+      <Modal
         title="Upload Documents"
-        placement="right"
-        width={520}
         open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
+        onCancel={() => setUploadOpen(false)}
+        footer={null}
+        width={Math.min(window.innerWidth - 40, 860)}
+        style={{ top: 20 }}
         destroyOnClose
-        styles={{ body: { padding: 0 } }}
+        styles={{ body: { padding: 0, maxHeight: 'calc(100vh - 130px)', overflowY: 'auto' } }}
       >
         <UploadPage
           onComplete={(period) => {
@@ -742,7 +749,7 @@ export default function DashboardPage() {
             setSelectedPeriods([period])
           }}
         />
-      </Drawer>
+      </Modal>
 
       {/* ── Tile drill-down modal ─────────────────────────────── */}
       <Modal
@@ -766,7 +773,7 @@ export default function DashboardPage() {
                 columns={DOC_COLUMNS}
                 dataSource={allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))}
                 rowKey={(d) => `${d.period}-${d.source_file}`}
-                locale={{ emptyText: 'No documents found for this category' }}
+                locale={{ emptyText: TILE_EMPTY_TEXT[activeTile] ?? 'No documents found for this category' }}
                 scroll={{ x: 800 }}
               />
         )}

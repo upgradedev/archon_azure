@@ -51,9 +51,15 @@ async def list_periods(_claims: dict = Depends(validate_entra_token)):
 
 
 @router.get("/documents/{period}")
-async def list_documents(period: str, _claims: dict = Depends(validate_entra_token)):
+async def list_documents(period: str, claims: dict = Depends(validate_entra_token)):
+    profile = _load_profile(claims)
+    params: dict[str, str] = {}
+    if profile.get("company_name"):
+        params["company_name"] = profile["company_name"]
+    if profile.get("company_tax_id"):
+        params["company_tax_id"] = profile["company_tax_id"]
     async with httpx.AsyncClient(timeout=30.0) as c:
-        return await _proxy(c, "GET", f"{ANALYSIS_ENDPOINT_URL}/documents/{period}")
+        return await _proxy(c, "GET", f"{ANALYSIS_ENDPOINT_URL}/documents/{period}", params=params)
 
 
 @router.get("/reports/{period}")
