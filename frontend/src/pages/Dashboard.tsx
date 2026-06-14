@@ -8,7 +8,7 @@ import {
 import {
   UploadOutlined, ThunderboltOutlined, RobotOutlined,
   LinkOutlined, ArrowUpOutlined, ArrowDownOutlined,
-  ReloadOutlined, DeleteOutlined, FileTextOutlined,
+  ReloadOutlined, DeleteOutlined, FileTextOutlined, InfoCircleOutlined,
 } from '@ant-design/icons'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -180,8 +180,14 @@ export default function DashboardPage() {
   const deleteMutation = useMutation({
     mutationFn: (period: string) => api.deletePeriod(period),
     onSuccess: (_, period) => {
+      // Optimistically remove the deleted period so the auto-select useEffect
+      // doesn't re-pick it before the refetch lands — otherwise widgets stay visible
+      queryClient.setQueryData<{ periods: string[] }>(['periods'], old => ({
+        periods: (old?.periods ?? []).filter(p => p !== period),
+      }))
+      queryClient.removeQueries({ queryKey: ['report', period] })
+      queryClient.removeQueries({ queryKey: ['documents', period] })
       queryClient.invalidateQueries({ queryKey: ['periods'] })
-      queryClient.invalidateQueries({ queryKey: ['report', period] })
       setSelectedPeriods(prev => prev.filter(p => p !== period))
       setDeleteTarget(null)
     },
@@ -217,6 +223,16 @@ export default function DashboardPage() {
   const expenseData = report?.expenseBreakdown.map(d => ({ name: d.category, value: d.amount })) ?? []
 
   const { body: summaryBody, citations } = parseSummary(report?.executiveSummary ?? '')
+
+  // Definitions shown on tile info icon hover
+  const TILE_TOOLTIPS: Record<string, string> = {
+    Revenue: 'Total value of sales invoices and service billing issued by the company in the selected period.',
+    Expenses: 'All outgoings: purchase invoices, employer payroll cost (from payroll register, not bank transfer), and other expense documents.',
+    'Net Profit': 'Revenue minus total expenses. Positive = profitable period; negative = loss-making.',
+    'Gross Margin': 'Net Profit as a percentage of Revenue. Measures how efficiently revenue converts to profit after all costs.',
+    'Cash Net': 'Actual net cash movement recorded on bank confirmation documents — operating + investing + financing flows combined.',
+    Invoices: 'Total count of financial documents analysed: sales invoices + purchase invoices + expense receipts.',
+  }
 
   // Which doc_types to show per tile
   const TILE_DOC_TYPES: Record<string, string[]> = {
@@ -428,7 +444,19 @@ export default function DashboardPage() {
                       }}
                     >
                       <Statistic
-                        title={<Text style={{ fontSize: 12, color: '#888' }}>{m.label}</Text>}
+                        title={
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <Text style={{ fontSize: 12, color: '#888' }}>{m.label}</Text>
+                            {TILE_TOOLTIPS[m.label] && (
+                              <Tooltip title={TILE_TOOLTIPS[m.label]} placement="top">
+                                <InfoCircleOutlined
+                                  style={{ fontSize: 11, color: '#555' }}
+                                  onClick={e => e.stopPropagation()}
+                                />
+                              </Tooltip>
+                            )}
+                          </span>
+                        }
                         value={m.value}
                         precision={m.precision ?? 0}
                         suffix={m.suffix}
