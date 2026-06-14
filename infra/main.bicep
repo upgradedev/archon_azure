@@ -414,10 +414,22 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [acaEnv, analysisApp]
 }
 
-// Note: Role assignments for managed identities are applied once manually (az role
-// assignment create) — not in Bicep to avoid Microsoft.Authorization/roleAssignments/write.
-// backendApp: Contributor on archon-extraction-job (already applied)
-// analysisApp: Azure AI Developer on foundryProject (apply after first deploy with managed identity)
+// Role assignment: Contributor on the Foundry project for the analysis Container App
+// managed identity. Contributor is required because "Azure AI Developer" (ARM RBAC)
+// does NOT include Microsoft.MachineLearningServices/workspaces/agents/action which the
+// azure-ai-projects SDK needs to create and run Foundry agents. Scoped to archon-project
+// only — not subscription or RG level.
+resource analysisFoundryContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  // Deterministic GUID — idempotent across redeploys
+  name: guid(foundryProject.id, analysisApp.identity.principalId, 'b24988ac-6180-42a0-ab88-20f7382dd24c')
+  scope: foundryProject
+  properties: {
+    // Contributor built-in role
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
+    principalId: analysisApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
 
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
