@@ -3,13 +3,15 @@ import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/rea
 import {
   Layout, Typography, Row, Col, Card, Button, Spin, Select,
   Drawer, Space, Statistic, Tag, Alert, Divider, theme, Tooltip,
-  Modal, Table,
+  Modal, Table, Form, Input,
 } from 'antd'
 import {
   UploadOutlined, ThunderboltOutlined, RobotOutlined,
   LinkOutlined, ArrowUpOutlined, ArrowDownOutlined,
   ReloadOutlined, DeleteOutlined, FileTextOutlined, InfoCircleOutlined,
+  SettingOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
+import type { CompanyProfile } from '../types/financial'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, Legend, ResponsiveContainer,
@@ -134,6 +136,9 @@ export default function DashboardPage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [activeTile, setActiveTile] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
+  const [profileForm] = Form.useForm<CompanyProfile>()
 
   const { data: periodsData, isLoading: periodsLoading } = useQuery<{ periods: string[] }>({
     queryKey: ['periods'],
@@ -175,6 +180,21 @@ export default function DashboardPage() {
   const analyzeMutation = useMutation({
     mutationFn: (period: string) => api.analyze(period),
     onSuccess: (_, period) => queryClient.invalidateQueries({ queryKey: ['report', period] }),
+  })
+
+  const { data: companyProfile } = useQuery<CompanyProfile>({
+    queryKey: ['company-profile'],
+    queryFn: api.getCompanyProfile,
+    staleTime: 60_000,
+  })
+
+  const profileMutation = useMutation({
+    mutationFn: (profile: CompanyProfile) => api.updateCompanyProfile(profile),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(['company-profile'], saved)
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 3000)
+    },
   })
 
   const deleteMutation = useMutation({
@@ -324,6 +344,15 @@ export default function DashboardPage() {
                 queryClient.invalidateQueries({ queryKey: ['report', p] })
               )}
               disabled={selectedPeriods.length === 0}
+            />
+          </Tooltip>
+          <Tooltip title="Company settings">
+            <Button
+              icon={<SettingOutlined />}
+              onClick={() => {
+                profileForm.setFieldsValue(companyProfile ?? { company_name: '', company_tax_id: '' })
+                setSettingsOpen(true)
+              }}
             />
           </Tooltip>
           <Button
@@ -614,6 +643,87 @@ export default function DashboardPage() {
           </Space>
         )}
       </Content>
+
+      {/* ── Company settings drawer ─────────────────────────── */}
+      <Drawer
+        title={<Space><SettingOutlined />Company Profile</Space>}
+        placement="right"
+        width={400}
+        open={settingsOpen}
+        onClose={() => { setSettingsOpen(false); setSettingsSaved(false) }}
+        destroyOnClose
+      >
+        <Space direction="vertical" size={20} style={{ width: '100%' }}>
+          <Alert
+            type="info"
+            showIcon
+            message="Per-tenant configuration"
+            description={
+              companyProfile?.company_name
+                ? `Currently configured for "${companyProfile.company_name}". These settings are saved to your Azure AD tenant — other users in the same tenant will share this identity.`
+                : 'Not yet configured. Set your company name and tax ID so Archon can automatically identify which documents are your sales invoices vs purchase invoices.'
+            }
+          />
+
+          <Form
+            form={profileForm}
+            layout="vertical"
+            initialValues={companyProfile ?? { company_name: '', company_tax_id: '' }}
+            onFinish={(values: CompanyProfile) => profileMutation.mutate(values)}
+          >
+            <Form.Item
+              label="Company Name"
+              name="company_name"
+              tooltip="Must match the name that appears as the vendor/issuer on your sales invoices (partial match supported)."
+              rules={[{ required: true, message: 'Enter your company name as shown on invoices' }]}
+            >
+              <Input placeholder="e.g. REFLECTIVE IKE" />
+            </Form.Item>
+
+            <Form.Item
+              label="Tax ID / VAT Number"
+              name="company_tax_id"
+              tooltip="Greek ΑΦΜ or EU VAT number — digits only, no prefix (e.g. 801234567). Used as the strongest match signal for sales invoice detection."
+            >
+              <Input placeholder="e.g. 801234567" />
+            </Form.Item>
+
+            {settingsSaved && (
+              <Alert
+                type="success"
+                showIcon
+                icon={<CheckCircleOutlined />}
+                message="Saved — re-run analysis to apply"
+                style={{ marginBottom: 16 }}
+              />
+            )}
+            {profileMutation.isError && (
+              <Alert
+                type="error"
+                message={String(profileMutation.error)}
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={profileMutation.isPending}
+              icon={settingsSaved ? <CheckCircleOutlined /> : <SettingOutlined />}
+            >
+              {settingsSaved ? 'Saved' : 'Save Company Profile'}
+            </Button>
+          </Form>
+
+          <Divider />
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            These settings are stored in Azure Blob Storage keyed by your Entra tenant ID.
+            Env vars COMPANY_NAME / COMPANY_TAX_ID remain as fallback defaults for demo mode
+            (no token present).
+          </Text>
+        </Space>
+      </Drawer>
 
       {/* ── Upload drawer ────────────────────────────────────── */}
       <Drawer

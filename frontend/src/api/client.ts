@@ -66,6 +66,11 @@ export const api = {
     return data
   },
 
+  updateCompanyProfile: async (profile: CompanyProfile): Promise<CompanyProfile> => {
+    const { data } = await http.put<CompanyProfile>('/api/company-profile', profile)
+    return data
+  },
+
   updateDocuments: async (period: string, documents: ExtractedDoc[]): Promise<{ period: string; documents: number }> => {
     const { data } = await http.put(`/api/documents/${period}`, { documents })
     return data

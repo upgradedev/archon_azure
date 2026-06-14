@@ -94,6 +94,10 @@ def _cache_report(period: str, report: FinancialReport, generated_at: str) -> No
 
 class AnalyzeRequest(BaseModel):
     period: str
+    # Per-request company identity — supplied by the backend from tenant-scoped blob storage.
+    # When present these override the env-var defaults so different tenants can share one endpoint.
+    company_name: str | None = None
+    company_tax_id: str | None = None
 
 
 class AnalyzeResponse(BaseModel):
@@ -106,12 +110,17 @@ class AnalyzeResponse(BaseModel):
 def analyze(req: AnalyzeRequest):
     log.info("=== Analysis start — period=%s ===", req.period)
 
+    # Request values take precedence over env-var defaults
+    company_name   = req.company_name   if req.company_name   is not None else settings.company_name
+    company_tax_id = req.company_tax_id if req.company_tax_id is not None else settings.company_tax_id
+    log.info("Company identity: name=%r tax_id=%r", company_name, company_tax_id)
+
     all_docs = _load_documents(req.period)
     if not all_docs:
         raise HTTPException(status_code=404, detail=f"No extracted documents for period {req.period}")
     log.info("Loaded %d documents", len(all_docs))
 
-    all_docs = classify(all_docs, settings.company_tax_id, settings.company_name)
+    all_docs = classify(all_docs, company_tax_id, company_name)
     fin_docs = [d for d in all_docs if d.doc_type != "account_statement"]
     log.info("Financial docs: %d, Account statements: %d",
              len(fin_docs), len(all_docs) - len(fin_docs))
