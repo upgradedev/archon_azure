@@ -243,6 +243,7 @@ resource extractionJob 'Microsoft.App/jobs@2024-03-01' = {
           { name: 'AZURE_STORAGE_CONNECTION_STRING', secretRef: 'storage-conn' }
           { name: 'AZURE_OPENAI_ENDPOINT', value: openai.properties.endpoint }
           { name: 'AZURE_OPENAI_API_KEY', secretRef: 'openai-key' }
+          { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         ]
       }]
     }
@@ -272,14 +273,13 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
       }]
       secrets: [
         { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
-        { name: 'storage-conn', value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net' }
-        { name: 'openai-key', value: openaiKey }
-        { name: 'search-key', value: aiSearch.listAdminKeys().primaryKey }
-        { name: 'pg-url', value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon' }
+        { name: 'storage-conn', keyVaultUrl: '${keyVault.properties.vaultUri}secrets/storage-conn', identity: 'system' }
+        { name: 'openai-key',   keyVaultUrl: '${keyVault.properties.vaultUri}secrets/openai-key',   identity: 'system' }
+        { name: 'search-key',   keyVaultUrl: '${keyVault.properties.vaultUri}secrets/search-key',   identity: 'system' }
+        { name: 'pg-url',       keyVaultUrl: '${keyVault.properties.vaultUri}secrets/pg-url',       identity: 'system' }
         // Foundry project connection string: <endpoint>;<sub>;<rg>;<project>
         // azure-ai-projects SDK b10 expects NO https:// prefix — it adds the scheme itself.
-        // Including https:// causes host='https' DNS failure (SDKs splits on ; then adds https://).
-        { name: 'foundry-conn', value: '${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}' }
+        { name: 'foundry-conn', keyVaultUrl: '${keyVault.properties.vaultUri}secrets/foundry-conn', identity: 'system' }
       ]
     }
     template: {
@@ -302,6 +302,7 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
           // Foundry agent runtime — enables azure-ai-projects SDK in NarratorAgent
           { name: 'AZURE_AI_PROJECT_CONNECTION_STRING', secretRef: 'foundry-conn' }
           { name: 'AZURE_AI_SEARCH_CONNECTION_NAME', value: 'archon-search' }
+          { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         ]
         probes: [
           {
@@ -356,9 +357,9 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
       }]
       secrets: [
         { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
-        { name: 'storage-conn', value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net' }
-        { name: 'pg-url', value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon' }
-        { name: 'openai-key', value: openaiKey }
+        { name: 'storage-conn', keyVaultUrl: '${keyVault.properties.vaultUri}secrets/storage-conn', identity: 'system' }
+        { name: 'pg-url',       keyVaultUrl: '${keyVault.properties.vaultUri}secrets/pg-url',       identity: 'system' }
+        { name: 'openai-key',   keyVaultUrl: '${keyVault.properties.vaultUri}secrets/openai-key',   identity: 'system' }
       ]
     }
     template: {
@@ -382,6 +383,7 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
           { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
           { name: 'AZURE_SUBSCRIPTION_ID', value: subscription().subscriptionId }
           { name: 'CORS_ORIGINS', value: corsOrigins }
+          { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         ]
         probes: [
           {
@@ -420,6 +422,90 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
 // ML workspace scope. Required for azure-ai-projects SDK to create Foundry agents
 // (workspaces/agents/action is not in the Azure AI Developer built-in role).
 
+// ── Key Vault ────────────────────────────────────────────────────────────────
+// Stores all sensitive secrets. Access policy mode (not RBAC) avoids the
+// roleAssignments/write permission that the GitHub Actions SP lacks.
+// Principal IDs are hardcoded to break the Bicep circular dependency
+// (Container App principal IDs are stable — system-assigned identities persist
+// for the lifetime of the resource).
+
+var analysisIdentityPrincipalId = 'b5afd1cf-b026-4d1e-8102-161ee349817a'
+var backendIdentityPrincipalId  = 'baed9271-fbca-4cf6-b1c0-93b859de5cb3'
+
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: '${prefix}-kv-${uniqueString(resourceGroup().id)}'
+  location: location
+  tags: tags
+  properties: {
+    sku: { family: 'A', name: 'standard' }
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: false
+    softDeleteRetentionInDays: 7
+    accessPolicies: [
+      {
+        tenantId: subscription().tenantId
+        objectId: analysisIdentityPrincipalId
+        permissions: { secrets: ['get', 'list'] }
+      }
+      {
+        tenantId: subscription().tenantId
+        objectId: backendIdentityPrincipalId
+        permissions: { secrets: ['get', 'list'] }
+      }
+    ]
+  }
+}
+
+resource kvSecretOpenaiKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'openai-key'
+  properties: { value: openaiKey }
+}
+
+resource kvSecretStorageConn 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'storage-conn'
+  properties: {
+    value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+  }
+}
+
+resource kvSecretSearchKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'search-key'
+  properties: { value: aiSearch.listAdminKeys().primaryKey }
+}
+
+resource kvSecretPgUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'pg-url'
+  properties: {
+    value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon'
+  }
+}
+
+resource kvSecretFoundryConn 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'foundry-conn'
+  properties: {
+    value: '${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}'
+  }
+}
+
+// ── Application Insights ──────────────────────────────────────────────────────
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: '${prefix}-insights-${uniqueString(resourceGroup().id)}'
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+    RetentionInDays: 30
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
 output acrLoginServer string = acr.properties.loginServer
@@ -431,3 +517,5 @@ output searchEndpoint string = 'https://${aiSearch.name}.search.windows.net'
 output postgresHost string = pgServer.properties.fullyQualifiedDomainName
 output foundryProjectName string = foundryProject.name
 output foundryConnectionString string = '${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}'
+output keyVaultUri string = keyVault.properties.vaultUri
+output appInsightsConnectionString string = appInsights.properties.ConnectionString
