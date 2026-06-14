@@ -166,7 +166,7 @@ def _foundry_agent_summary(prompt: str) -> str:
         messages = client.agents.list_messages(thread_id=thread.id)
         # Last assistant message contains the summary text + citation annotations
         for msg in reversed(messages.data):
-            if msg.role == MessageRole.ASSISTANT:
+            if msg.role == MessageRole.AGENT:
                 text_value = ""
                 citations: list[str] = []
                 for block in msg.content:

@@ -239,7 +239,7 @@ def health_foundry():
         if run.status == "completed":
             msgs = client.agents.list_messages(thread_id=thread.id)
             for msg in reversed(msgs.data):
-                if msg.role == MessageRole.ASSISTANT:
+                if msg.role == MessageRole.AGENT:
                     for block in msg.content:
                         if hasattr(block, "text"):
                             result["foundry_reply"] = block.text.value[:200]
