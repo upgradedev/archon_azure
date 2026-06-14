@@ -277,30 +277,38 @@ _DEMO_DOCUMENTS = [
 @app.post("/seed-demo")
 def seed_demo():
     """
-    Upload synthetic demo documents to blob storage.
+    Replace all extracted documents for 2026-01 with clean demo data.
+    Deletes any existing blobs under extracted/2026-01/ first so old test-run
+    data cannot contaminate the analysis result. Then uploads the 7 synthetic
+    demo documents as the sole source for the period.
     Uses the container's own AZURE_STORAGE_CONNECTION_STRING — no external credentials needed.
-    Idempotent: overwrites any existing demo-upload-001 documents.json for 2026-01.
     """
     period    = "2026-01"
     upload_id = "demo-upload-001"
-    blob_name = f"extracted/{period}/{upload_id}/documents.json"
+    prefix    = f"extracted/{period}/"
+    container = settings.azure_storage_container
 
-    payload = {
-        "documents": _DEMO_DOCUMENTS,
-        "upload_id": upload_id,
-        "period": period,
-    }
-    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    blob_svc = _blob_client()
+    cont_client = blob_svc.get_container_client(container)
 
-    blob = _blob_client().get_blob_client(
-        container=settings.azure_storage_container, blob=blob_name
-    )
-    blob.upload_blob(body, overwrite=True)
+    # Delete every blob under extracted/2026-01/ (old runs, stale data)
+    deleted = 0
+    for b in cont_client.list_blobs(name_starts_with=prefix):
+        cont_client.delete_blob(b.name)
+        deleted += 1
+    log.info("Deleted %d stale blobs under %s", deleted, prefix)
+
+    # Upload fresh demo documents
+    blob_name = f"{prefix}{upload_id}/documents.json"
+    payload   = {"documents": _DEMO_DOCUMENTS, "upload_id": upload_id, "period": period}
+    body      = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    blob_svc.get_blob_client(container=container, blob=blob_name).upload_blob(body, overwrite=True)
 
     log.info("Seeded demo data: %s (%d docs)", blob_name, len(_DEMO_DOCUMENTS))
     return {
         "seeded": True,
         "blob": blob_name,
         "docs": len(_DEMO_DOCUMENTS),
+        "deleted_stale": deleted,
         "period": period,
     }
