@@ -169,6 +169,20 @@ def health():
 
 _DEMO_DOCUMENTS = [
     {
+        "source_file": "raw-docs/2026-01/demo-upload-001/consulting_invoice_202601.pdf",
+        "doc_type": "invoice", "detected_language": "el", "issue_date": "2026-01-31",
+        "vendor_name": "REFLECTIVE IKE", "vendor_tax_id": "801234567",
+        "recipient_name": "ALPHA SYNERGATIS AE", "currency": "EUR",
+        "original_currency": None, "original_amount": None,
+        "subtotal": 6854.84, "vat_amount": 1645.16, "vat_rate_pct": 24.0,
+        "vat_treatment": "standard", "total_amount": 8500.00,
+        "payment_due_date": "2026-02-28", "invoice_number": "INV-REF-202601-001",
+        "notes": "Sales invoice for IT consulting services January 2026.", "confidence": 0.97,
+        "employee_count": None, "gross_pay_total": None, "employer_cost_total": None,
+        "net_pay_total": None, "employee_name": None, "employee_code": None,
+        "statement_balance": None, "statement_overdue": None, "statement_entries": None,
+    },
+    {
         "source_file": "raw-docs/2026-01/demo-upload-001/attiki_odos_invoice_202601.pdf",
         "doc_type": "invoice", "detected_language": "el", "issue_date": "2026-01-31",
         "vendor_name": "ATTIKI ODOS AE", "vendor_tax_id": "094506571",
