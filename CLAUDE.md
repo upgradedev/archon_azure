@@ -61,6 +61,60 @@ Stop and investigate before proceeding if CI is red or env var count drops.
 **Decision:** Every `field: SomeType | None` must have `= None` as a default.
 **Reason:** Pydantic v2 treats `field: str | None` (no default) as required. Constructors that omit it raise `ValidationError`.
 
+## Current status (2026-06-14, session 4)
+
+**master:** `6f93cf1` — 6 PRs merged this session (#1–#6)
+**CI:** GREEN — smoke-test + deploy both passing
+**Live deployment:** All Azure Container Apps running (westeurope)
+
+| Item | State |
+|---|---|
+| All 16 audit issues fixed (B1,B2,H1-H6,M1-M6) | Done — ff7113f |
+| Dead code + EventLinker tests | Done — 61b5f53 |
+| Analysis startup crash + deploy jq error | Done — 6cc425e |
+| `scripts/e2e-live.py` — live e2e test | Done — 9e2f834 |
+| `/seed-demo` endpoint on analysis container | Done — f023b5c |
+| Seed-demo purges stale blobs first | Done — 2910bd1 |
+| Sales invoice added to demo data (revenue > 0) | Done — 6f93cf1 |
+| **E2E test result: ALL 22 CHECKS PASSED** | **VERIFIED LIVE** |
+
+### Live endpoints
+
+| URL | Service |
+|---|---|
+| https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io | FastAPI backend |
+| https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io | Analysis endpoint |
+
+### E2E test
+
+Run anytime against the live deployment:
+
+```bash
+python scripts/e2e-live.py
+```
+
+The test auto-seeds 8 demo documents via `POST /seed-demo` on the analysis container (purges stale data first — idempotent). No credentials needed.
+
+### Live demo P&L (2026-01)
+
+| Metric | Value |
+|---|---|
+| Revenue | €8,500.00 (consulting sales invoice) |
+| Expenses | €7,588.39 (invoices + payroll) |
+| Net Profit | €911.61 |
+| Employer cost (register) | €6,930.00 |
+| Bank transfer (net) | €3,994.74 |
+| **28% gap ratio** | **1.735 × (confirmed live)** |
+
+### Known gaps (open before submission)
+
+| Gap | Notes |
+|---|---|
+| Foundry IQ narrator on FALLBACK path | executiveSummary shows fallback text, not Foundry-grounded summary with "Sources:". Root cause: `AZURE_AI_PROJECT_CONNECTION_STRING` may be missing or malformed in the analysis Container App env. Investigate via Azure Portal → archon-analysis → Environment variables. |
+| M365 agent not sideloaded | User action: Teams Admin Center → m365-agent/archon-agent.zip |
+| Demo video not recorded | User action: 5 min, follow docs/demo-script.md |
+| Submission not filed | User action: https://aka.ms/agentsleague/aisf — DEADLINE TODAY June 14 23:59 PT |
+
 ## Alice standards that apply (adapted for GitHub)
 
 - Session rescan protocol (above)
