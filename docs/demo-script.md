@@ -26,29 +26,29 @@
 
 > *Screen: Title card. "Archon — Agentic Financial Intelligence for SMBs."*
 
-Every month, thousands of small business owners look at their bank statement to measure payroll cost.
+Every month, small business owners try to reconstruct their real payroll cost from a pile of documents.
 
-They are wrong — by twenty-eight percent.
+The problem is: no single document tells the whole story.
 
-The net salary that reaches an employee's account is not the real cost. Add employer social security contributions under Greek law — Law 4387 slash 2016 — and the true figure is twenty-five percent higher than what the bank shows.
+The bank confirmation shows only the net salary transfer to employees. The payroll register adds the employer social-security contribution to EFKA. The individual payslips break down each employee's allocation. And the tax authority receives income-tax withholdings in a completely separate transfer.
 
-Archon fixes that. Automatically.
+To know your true payroll cost, you need to correlate all four streams. That is exactly what Archon does — automatically.
 
 ---
 
 ### [0:25 – 1:00] — THE PROBLEM
 
-> *Screen: Side-by-side diagram. Left: bank confirmation slip showing €3,994. Right: true employer cost breakdown showing €6,930.*
+> *Screen: Diagram showing four document streams feeding into a single reconciled payroll figure.*
 
-Here is a real example from our synthetic demo dataset.
+Here is a real example from our synthetic demo dataset for January 2026.
 
-The bank confirmation for January 2026 shows a net salary transfer of three thousand nine hundred ninety-four euros.
+The bank confirmation shows a net employee transfer of three thousand nine hundred ninety-four euros. That is what most SMBs record as their payroll cost.
 
-But the payroll register tells the full story: gross salaries, plus employer EFKA contributions of twenty-five percent, bring the true employer cost to six thousand nine hundred thirty euros.
+But the payroll register reveals the employer EFKA contribution — a separate institutional payment. The individual payslips confirm each employee's allocation. And the tax authority receives withheld income tax as yet another separate stream.
 
-A CFO reading only the bank statement underestimates payroll — and overstates profit — by nearly three thousand euros per month.
+These are not the same transaction. They cannot be matched by date, by amount, or by counterparty — they require multi-document correlation by company, by period, and by regulatory logic.
 
-This is not a rounding error. This is a structural blind spot in how SMBs process documents.
+Archon's Event Linker agent performs that correlation automatically. The result: a single, accurate financial event that reflects the true employer cost.
 
 ---
 
@@ -108,11 +108,11 @@ Now the most important part.
 
 The Narrator agent uses the **Azure AI Foundry agent runtime** with the **AzureAISearchTool** connected to our knowledge index.
 
-Watch the executive summary. It does not just say "payroll was high." It says: *"Per IAS 19 paragraph 10, the full employer cost — including EFKA contributions under Law 4387 slash 2016 — must be recognised as the employee benefit expense. Recording only the net bank transfer understates the P&L by approximately twenty-eight percent."*
+Watch the executive summary. It does not just say "payroll was high." It explains: *"Accurate payroll cost for this period required correlating three document streams — the bank confirmation, the payroll register, and individual payslips — since each captures a distinct payment flow. Per IAS 19 paragraph 10, the employee benefit expense must include employer EFKA contributions under Law 4387 slash 2016, which arrive at the insurance institution as a separate transfer and are not visible in the bank confirmation alone."*
 
-That sentence is grounded. It came from our AI Search index. Foundry IQ retrieved the relevant regulation, fused it with the financial figures from the analysis pipeline, and produced a cited, hallucination-resistant summary.
+That sentence is grounded. It came from our AI Search index. Foundry IQ retrieved the relevant regulation, fused it with the multi-stream reconciliation performed by the analysis pipeline, and produced a cited, hallucination-resistant summary.
 
-This is Reasoning Agents in production: six specialised agents collaborating, each responsible for one part of the truth, Foundry IQ synthesising the final answer.
+This is Reasoning Agents in production: seven specialised agents collaborating, each responsible for one part of the truth, Foundry IQ synthesising the final answer with regulatory citations.
 
 ---
 
@@ -124,7 +124,7 @@ Archon also lives inside Microsoft Teams as a **declarative Copilot agent**.
 
 A business owner types: *"What is our true payroll cost for January, including IKA contributions?"*
 
-Watch Archon's response. It calls the Archon backend API, retrieves the analysed report, and answers — in natural language — with the correct employer cost, the regulatory basis, and a comparison against the bank transfer amount.
+Watch Archon's response. It calls the Archon backend API, retrieves the analysed report, and answers — in natural language — with the true employer cost derived from all four payment streams, the regulatory basis under Law 4387/2016, and a clear explanation of why the bank statement alone would have given the wrong figure.
 
 No spreadsheet. No accountant on the phone. The CFO-level answer is one message away, from inside the tool the team already uses every day.
 
@@ -166,6 +166,6 @@ Before hitting record, verify:
 - Voice style: **calm, professional, slightly slow** — CFO presentation register
 - Pace: 145–155 words per minute
 - Pause 0.5 s after each section heading (the `---` breaks)
-- Emphasise (slight stress): "twenty-eight percent", "six thousand nine hundred thirty", "grounded", "cited"
+- Emphasise (slight stress): "four streams", "correlate", "separate transfer", "grounded", "cited"
 - Do NOT emphasise law numbers — read them flatly as ordinal strings
 - Pronunciation: "EFKA" → spell out E-F-K-A; "IAS" → spell out I-A-S; "IKA" → I-K-A

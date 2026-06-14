@@ -36,6 +36,10 @@ from models.financial import ExtractedDoc, FinancialReport
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("archon.analysis")
 
+if os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+    from azure.monitor.opentelemetry import configure_azure_monitor
+    configure_azure_monitor()
+
 
 class Settings(BaseSettings):
     azure_storage_connection_string: str = ""

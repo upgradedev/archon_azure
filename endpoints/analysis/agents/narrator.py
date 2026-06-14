@@ -142,6 +142,14 @@ def _foundry_agent_summary(prompt: str) -> str:
             "reporting standards. Use the connected knowledge base to produce accurate, "
             "regulation-cited executive summaries. Cite specific standards or law articles "
             "when making regulatory claims. "
+            "A key insight in your analysis: a payroll period cannot be fully understood "
+            "from any single document. The bank confirmation captures only the net employee "
+            "transfer. The payroll register adds employer EFKA/social-insurance contributions "
+            "payable to the insurance institution. The individual payslips break down "
+            "per-employee allocations. Tax authority withholdings (income tax prepayments, "
+            "stamp duty) constitute a fourth separate stream. True payroll cost requires "
+            "correlating all streams. Highlight where document correlation was necessary "
+            "and what a single-source reading would have missed. "
             "Always end your response with a line that starts exactly with 'Sources: ' "
             "followed by a dot-separated list of the specific standards, laws, or documents "
             "you retrieved and cited (e.g. 'Sources: Law 4387/2016 · IAS 1 · Greek VAT Law 2859/2000'). "
@@ -260,13 +268,16 @@ def _search_data_source_config() -> dict:
 
 def _build_prompt(report: FinancialReport) -> str:
     top_categories = ", ".join(e.category for e in report.expenseBreakdown[:3])
-    payroll_gap = ""
+    payroll_reconciliation = ""
     for ev in report.payrollEvents:
         if ev.employer_cost_total and ev.net_total:
-            gap_pct = (ev.employer_cost_total - ev.net_total) / ev.net_total * 100
-            payroll_gap = (
-                f"\nPayroll: bank net \u20ac{ev.net_total:,.2f} vs true employer cost "
-                f"\u20ac{ev.employer_cost_total:,.2f} (+{gap_pct:.1f}%)"
+            payroll_reconciliation = (
+                f"\nPayroll multi-stream reconciliation:"
+                f"\n  \u2022 Bank confirmation (employee net transfers): \u20ac{ev.net_total:,.2f}"
+                f"\n  \u2022 Payroll register (gross + employer EFKA contributions): \u20ac{ev.employer_cost_total:,.2f}"
+                f"\n  Note: these are separate payment streams \u2014 bank confirms employee net pay,"
+                f"\n  while EFKA and tax authority receive separate transfers not visible in the bank slip."
+                f"\n  Accurate P&L requires correlating all streams."
             )
             break
 
@@ -274,6 +285,7 @@ def _build_prompt(report: FinancialReport) -> str:
 plain English, no bullet points) for the following monthly financial data.
 Where relevant, cite applicable accounting standards or Greek tax/payroll regulations
 (e.g. EFKA contribution rates under Law 4387/2016, IAS 1 presentation, Greek VAT Law 2859/2000).
+Highlight where correlating multiple document streams was essential to arriving at the correct figure.
 
 Period: {report.period}
 Revenue: \u20ac{report.pnl.revenue:,.2f}
@@ -286,6 +298,6 @@ Expense Ratio: {report.keyMetrics.expenseRatioPct:.1f}%
 Invoice Count: {report.keyMetrics.invoiceCount}
 Avg Invoice Value: \u20ac{report.keyMetrics.avgInvoiceValue:,.2f}
 Collection Rate: {report.keyMetrics.collectionRatePct:.1f}%
-Top Expense Categories: {top_categories}{payroll_gap}
+Top Expense Categories: {top_categories}{payroll_reconciliation}
 
 Write the summary now. End with a 'Sources: ' line listing every regulation or standard you cited."""
