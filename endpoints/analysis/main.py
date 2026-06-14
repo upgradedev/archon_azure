@@ -161,6 +161,50 @@ def health():
     return {"status": "ok", "service": "archon-analysis-azure", "version": "2.1.0"}
 
 
+@app.get("/health/foundry")
+def health_foundry():
+    """
+    Diagnostic endpoint — tests the Foundry IQ connection without exposing secrets.
+    Returns the connection string shape (redacted) and the first error encountered.
+    """
+    conn_str = os.environ.get("AZURE_AI_PROJECT_CONNECTION_STRING", "")
+    result: dict = {
+        "env_var_set": bool(conn_str.strip()),
+        "conn_str_len": len(conn_str),
+        "conn_str_preview": (conn_str[:12] + "..." + conn_str[-12:]) if len(conn_str) > 30 else "(short)",
+        "search_conn_name": os.environ.get("AZURE_AI_SEARCH_CONNECTION_NAME", "(not set)"),
+        "search_index": os.environ.get("AZURE_AI_SEARCH_INDEX", "(not set)"),
+        "deployment": os.environ.get("AZURE_OPENAI_ANALYSIS_DEPLOYMENT", "(not set)"),
+        "client_ok": False,
+        "connections_ok": False,
+        "error": None,
+    }
+    if not conn_str.strip():
+        result["error"] = "AZURE_AI_PROJECT_CONNECTION_STRING is not set"
+        return result
+
+    try:
+        from azure.ai.projects import AIProjectClient
+        from azure.ai.projects.models import AzureAISearchTool
+        from azure.identity import DefaultAzureCredential
+
+        client = AIProjectClient.from_connection_string(
+            conn_str=conn_str,
+            credential=DefaultAzureCredential(),
+        )
+        result["client_ok"] = True
+
+        search_conn_name = os.environ.get("AZURE_AI_SEARCH_CONNECTION_NAME", "archon-search")
+        conn = client.connections.get(connection_name=search_conn_name)
+        result["connections_ok"] = True
+        result["search_conn_id"] = conn.id[:40] + "..." if len(conn.id) > 40 else conn.id
+
+    except Exception as exc:
+        result["error"] = f"{type(exc).__name__}: {exc}"
+
+    return result
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Demo seed endpoint — uploads synthetic demo documents for testing/demo
 # Requires no external credentials; runs inside the container using its own
