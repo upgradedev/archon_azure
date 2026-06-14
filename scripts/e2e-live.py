@@ -20,9 +20,17 @@ import sys
 import urllib.error
 import urllib.request
 
+# Force UTF-8 output on Windows consoles that default to CP1252
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 BACKEND_URL = os.getenv(
     "BACKEND_URL",
     "https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io",
+).rstrip("/")
+ANALYSIS_URL = os.getenv(
+    "ANALYSIS_URL",
+    "https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io",
 ).rstrip("/")
 PERIOD = os.getenv("PERIOD", "2026-01")
 
@@ -65,9 +73,27 @@ def http_post(path: str, body: dict, timeout: int = 200) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _seed_demo_data() -> None:
+    """
+    Seed demo documents via the analysis endpoint's /seed-demo route.
+    This requires no external credentials — the analysis container uses its own
+    storage connection. Falls back to direct blob upload if AZURE_STORAGE_CONNECTION_STRING
+    is set locally.
+    """
+    # Primary: call analysis /seed-demo (no credentials needed)
+    try:
+        url  = f"{ANALYSIS_URL}/seed-demo"
+        req  = urllib.request.Request(url, data=b"{}", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read())
+        print(f"  {GREEN}[OK]{RESET}   Seeded via analysis endpoint: {result.get('blob')}  ({result.get('docs')} docs)")
+        return
+    except Exception as exc:
+        print(f"  {YELLOW}[WARN]{RESET} analysis /seed-demo failed ({exc}) — trying local blob upload ...")
+
+    # Fallback: direct blob upload if running locally with storage credentials
     conn_str = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "").strip()
     if not conn_str:
-        print(f"  {YELLOW}[SKIP]{RESET} AZURE_STORAGE_CONNECTION_STRING not set — assuming data already in place")
+        print(f"  {YELLOW}[SKIP]{RESET} AZURE_STORAGE_CONNECTION_STRING not set — demo data may be stale")
         return
 
     try:
@@ -91,7 +117,6 @@ def _seed_demo_data() -> None:
             client.create_container(container)
         except Exception:
             pass
-
         payload   = {"documents": mod.documents, "upload_id": "demo-upload-001", "period": PERIOD}
         body      = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         blob_name = f"extracted/{PERIOD}/demo-upload-001/documents.json"
@@ -119,9 +144,9 @@ def run_e2e() -> bool:
     print(f"{BOLD}1. Health checks{RESET}")
     try:
         h = http_get("/health")
-        check("Backend /health → 200", h.get("status") == "ok", f"status={h.get('status')!r}")
+        check("Backend /health -> 200", h.get("status") == "ok", f"status={h.get('status')!r}")
     except Exception as exc:
-        check("Backend /health → 200", False, str(exc))
+        check("Backend /health -> 200", False, str(exc))
         print(f"\n{RED}Backend unreachable — stopping.{RESET}\n")
         return False
     print()
@@ -130,14 +155,16 @@ def run_e2e() -> bool:
     print(f"{BOLD}2. Analysis pipeline  (POST /api/analyze — up to 3 min){RESET}")
     print("  Sending request ...")
     try:
-        report = http_post("/api/analyze", {"period": PERIOD}, timeout=200)
-        check("POST /api/analyze → 200", True)
+        raw    = http_post("/api/analyze", {"period": PERIOD}, timeout=200)
+        # Backend wraps: {"jobId": ..., "report": {...}, "generatedAt": ...}
+        report = raw.get("report") or raw
+        check("POST /api/analyze -> 200", True)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")[:200]
-        check("POST /api/analyze → 200", False, f"HTTP {exc.code}: {detail}")
+        check("POST /api/analyze -> 200", False, f"HTTP {exc.code}: {detail}")
         return False
     except Exception as exc:
-        check("POST /api/analyze → 200", False, str(exc))
+        check("POST /api/analyze -> 200", False, str(exc))
         return False
     print()
 
@@ -200,9 +227,12 @@ def run_e2e() -> bool:
     # ── 7. Validation rules ───────────────────────────────────────────────────
     print(f"{BOLD}7. Cross-document validation rules{RESET}")
     val_results = report.get("validationResults") or []
-    rules_seen  = {r.get("rule") for r in val_results}
-    check("R1 present  (bank ≈ payslips ±2%)",       "R1" in rules_seen, f"rules seen: {sorted(rules_seen)}")
-    check("R2 present  (employer cost ratio 1.25–1.45)", "R2" in rules_seen, "")
+    rules_seen  = [r.get("rule", "") for r in val_results]
+    check("R1 present  (bank ~= payslips +-2%)",
+          any(r.startswith("R1") for r in rules_seen),
+          f"rules: {rules_seen}")
+    check("R2 present  (employer cost ratio 1.25-1.45)",
+          any(r.startswith("R2") for r in rules_seen), "")
     check("At least one rule passed",
           any(r.get("passed") for r in val_results), "")
     print()
@@ -246,7 +276,7 @@ def run_e2e() -> bool:
         print("\nFailed:")
         for name, ok, detail in _results:
             if not ok:
-                print(f"  {RED}✗{RESET} {name}" + (f"  — {detail}" if detail else ""))
+                print(f"  {RED}x{RESET} {name}" + (f"  -- {detail}" if detail else ""))
     print()
     return failed == 0
 
