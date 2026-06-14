@@ -141,7 +141,11 @@ def _foundry_agent_summary(prompt: str) -> str:
             "IKA/EFKA payroll regulations (Law 4387/2016, current EFKA rates), and IFRS "
             "reporting standards. Use the connected knowledge base to produce accurate, "
             "regulation-cited executive summaries. Cite specific standards or law articles "
-            "when making regulatory claims."
+            "when making regulatory claims. "
+            "Always end your response with a line that starts exactly with 'Sources: ' "
+            "followed by a dot-separated list of the specific standards, laws, or documents "
+            "you retrieved and cited (e.g. 'Sources: Law 4387/2016 · IAS 1 · Greek VAT Law 2859/2000'). "
+            "If no knowledge base sources were used, omit the Sources line."
         ),
         tools=search_tool.definitions,
         tool_resources=search_tool.resources,
@@ -284,4 +288,4 @@ Avg Invoice Value: \u20ac{report.keyMetrics.avgInvoiceValue:,.2f}
 Collection Rate: {report.keyMetrics.collectionRatePct:.1f}%
 Top Expense Categories: {top_categories}{payroll_gap}
 
-Write the summary now:"""
+Write the summary now. End with a 'Sources: ' line listing every regulation or standard you cited."""
