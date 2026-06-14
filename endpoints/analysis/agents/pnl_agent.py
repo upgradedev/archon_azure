@@ -20,8 +20,15 @@ EXPENSE_DOC_TYPES = {"invoice", "expense", "payroll", "payroll_register",
 REVENUE_DOC_TYPES = {"sales"}
 
 
+def _revenue_amount(doc: ExtractedDoc) -> float:
+    """Return net revenue ex-VAT. Prefer subtotal; fall back to total minus vat_amount."""
+    if doc.subtotal is not None:
+        return doc.subtotal
+    return doc.total_amount - (doc.vat_amount or 0.0)
+
+
 def build_pnl(period: str, docs: list[ExtractedDoc]) -> MonthlyPnL:
-    revenue = sum(d.total_amount for d in docs if d.doc_type in REVENUE_DOC_TYPES)
+    revenue = sum(_revenue_amount(d) for d in docs if d.doc_type in REVENUE_DOC_TYPES)
     expenses = _compute_expenses(docs)
     # Operating expenses exclude payroll (already in cost-of-labour line) for margin calc
     non_payroll_opex = sum(
@@ -89,10 +96,14 @@ def build_vendor_summary(docs: list[ExtractedDoc]) -> list[VendorSummary]:
     ]
 
 
+_INVOICE_TYPES = {"sales", "invoice", "expense"}
+
+
 def build_key_metrics(docs: list[ExtractedDoc], revenue: float, expenses: float) -> KeyMetrics:
-    invoices = [d for d in docs if d.doc_type == "sales"]
+    invoices = [d for d in docs if d.doc_type in _INVOICE_TYPES]
     invoice_count = len(invoices)
-    avg_invoice = (sum(d.total_amount for d in invoices) / invoice_count) if invoice_count else 0.0
+    sales_docs = [d for d in docs if d.doc_type == "sales"]
+    avg_invoice = (sum(_revenue_amount(d) for d in sales_docs) / len(sales_docs)) if sales_docs else 0.0
 
     # Collection rate: bank confirmations received vs invoices issued
     # If no invoice data, report 0.0 rather than a fabricated 95%
