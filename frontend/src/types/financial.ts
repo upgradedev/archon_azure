@@ -21,7 +21,11 @@ export interface ExtractedDoc {
   gross_pay_total: number | null
   net_pay_total: number | null
   employee_name: string | null
+  employer_cost_total: number | null
+  employee_code: string | null
   statement_balance: number | null
+  statement_overdue: number | null
+  statement_entries: Record<string, unknown>[] | null
 }
 
 export interface CompanyProfile {

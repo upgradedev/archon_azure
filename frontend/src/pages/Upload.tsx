@@ -311,10 +311,12 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
                   />
                 ) : (
                   <>
-                    <Text>
-                      Detected period: <strong>{fmtPeriod(detectedPeriod)}</strong>
-                    </Text>
-                    <Tooltip title="Change period">
+                    <Tooltip title="Each document's own date (issue_date) takes priority. This period is used only for documents where no date is found.">
+                      <Text>
+                        Fallback period: <strong>{fmtPeriod(detectedPeriod)}</strong>
+                      </Text>
+                    </Tooltip>
+                    <Tooltip title="Change fallback period">
                       <Button
                         type="text"
                         size="small"

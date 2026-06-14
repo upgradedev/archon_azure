@@ -259,8 +259,8 @@ def run_e2e() -> bool:
     check("At least one employee summary", len(employees) >= 1, f"count={len(employees)}")
     if employees:
         all_names = [e.get("employee_name") for e in employees]
-        check("Papadopoulos Nikos present",
-              any("Papadopoulos" in (n or "") for n in all_names),
+        check("Ioannou Alexandros present",
+              any("Ioannou" in (n or "") for n in all_names),
               f"names: {all_names}")
     print()
 

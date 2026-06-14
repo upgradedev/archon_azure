@@ -16,7 +16,7 @@
       "post": {
         "operationId": "analyzeFinancials",
         "summary": "Run financial analysis for a period",
-        "description": "Triggers the 6-agent analysis pipeline for the specified period and returns a full FinancialReport with P&L, cash flow, expense breakdown, payroll cost reconciliation, and a Foundry IQ-grounded executive summary.",
+        "description": "Triggers the 7-agent analysis pipeline for the specified period and returns a full FinancialReport with P&L, cash flow, expense breakdown, payroll cost reconciliation, and a Foundry IQ-grounded executive summary.",
         "requestBody": {
           "required": true,
           "content": {
