@@ -97,10 +97,19 @@ def _foundry_agent_summary(prompt: str) -> str:
     from azure.ai.projects.models import AzureAISearchTool, MessageRole
     from azure.identity import DefaultAzureCredential
 
-    conn_str = os.environ["AZURE_AI_PROJECT_CONNECTION_STRING"]
+    raw_conn_str = os.environ["AZURE_AI_PROJECT_CONNECTION_STRING"]
     search_conn = os.environ.get("AZURE_AI_SEARCH_CONNECTION_NAME", "archon-search")
     index_name = os.environ.get("AZURE_AI_SEARCH_INDEX", "archon-knowledge")
     deployment = os.environ.get("AZURE_OPENAI_ANALYSIS_DEPLOYMENT", "gpt-4o")
+
+    # SDK b10 expects format: <fqdn>;<sub>;<rg>;<project>  (NO https:// prefix).
+    # Bicep previously set the secret with https:// which causes the SDK to resolve
+    # host='https' and fail with a DNS error. Strip the scheme defensively so the code
+    # works against both old (https://-prefixed) and new (fixed) secret values.
+    parts = raw_conn_str.split(";")
+    if parts[0].startswith("https://"):
+        parts[0] = parts[0][len("https://"):]
+    conn_str = ";".join(parts)
 
     client = AIProjectClient.from_connection_string(
         conn_str=conn_str,
@@ -108,10 +117,9 @@ def _foundry_agent_summary(prompt: str) -> str:
     )
 
     # Derive the connection ARM resource ID directly from the connection string parts:
-    #   https://<region>.api.azureml.ms;<subscription_id>;<resource_group>;<project_name>
+    #   <region>.api.azureml.ms;<subscription_id>;<resource_group>;<project_name>
     # Bypasses client.connections.get() which requires connections/read RBAC that the
     # managed identity does not have ("Azure AI Developer" role omits this action).
-    parts = conn_str.split(";")
     conn_id = (
         f"/subscriptions/{parts[1]}/resourceGroups/{parts[2]}"
         f"/providers/Microsoft.MachineLearningServices/workspaces/{parts[3]}"
