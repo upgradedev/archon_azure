@@ -86,7 +86,7 @@ Use `tf@upgrade.net.gr` for Azure CLI. Do NOT touch HEDNO subscriptions (d64d703
 | Foundry IQ — Contributor role on archon-project | Done — az rest (ce86e394) — 2026-06-14 |
 | Foundry IQ — Azure OpenAI connection in Foundry project | Done — az rest — 2026-06-14 |
 | Foundry IQ — MessageRole.AGENT fix | Done — a266cf5 |
-| **Foundry IQ — PENDING DEPLOY VERIFICATION** | **Deploy in progress** |
+| **Foundry IQ — ALL 23 CHECKS PASSED** | **VERIFIED LIVE (5638950)** |
 
 ### Live endpoints
 
@@ -120,7 +120,6 @@ The test auto-seeds 8 demo documents via `POST /seed-demo` on the analysis conta
 
 | Gap | Notes |
 |---|---|
-| Foundry IQ narrator | Deploy in progress (PR #14); test with `/health/foundry` after deploy |
 | M365 agent not sideloaded | User action: Teams Admin Center → m365-agent/archon-agent.zip |
 | Demo video not recorded | User action: 5 min, follow docs/demo-script.md |
 | Submission not filed | User action: https://aka.ms/agentsleague/aisf — DEADLINE TODAY June 14 23:59 PT |
