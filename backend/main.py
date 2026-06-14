@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic_settings import BaseSettings
 
-from routers import upload, jobs, analysis
+from routers import upload, jobs, analysis, mcp
 
 if os.environ.get("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     from azure.monitor.opentelemetry import configure_azure_monitor
@@ -40,6 +40,7 @@ app.add_middleware(
 app.include_router(upload.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
+app.include_router(mcp.router)
 
 
 @app.get("/health")

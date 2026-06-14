@@ -160,6 +160,21 @@ def get_report(period: str):
         raise HTTPException(status_code=404, detail=f"No report for period {period}") from exc
 
 
+@app.get("/periods")
+def list_periods():
+    """List reporting periods that have extracted documents in blob storage."""
+    try:
+        container = _blob_client().get_container_client(settings.azure_storage_container)
+        periods = set()
+        for blob in container.list_blobs(name_starts_with="extracted/"):
+            parts = blob.name.split("/")
+            if len(parts) >= 2 and parts[1]:
+                periods.add(parts[1])
+        return {"periods": sorted(periods)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Storage error: {exc}") from exc
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "archon-analysis-azure", "version": "2.1.0"}

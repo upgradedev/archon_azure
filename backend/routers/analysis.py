@@ -1,7 +1,9 @@
 import os
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from auth import validate_entra_token
 
 router = APIRouter()
 
@@ -13,8 +15,11 @@ class AnalyzeRequest(BaseModel):
 
 
 @router.post("/analyze")
-async def trigger_analysis(req: AnalyzeRequest):
-    """Call the Azure Container Apps analysis endpoint."""
+async def trigger_analysis(
+    req: AnalyzeRequest,
+    _claims: dict = Depends(validate_entra_token),
+):
+    """Trigger the 7-agent analysis pipeline. Validates Entra ID bearer token when present."""
     try:
         async with httpx.AsyncClient(timeout=180.0) as client:
             resp = await client.post(
@@ -28,8 +33,11 @@ async def trigger_analysis(req: AnalyzeRequest):
 
 
 @router.get("/reports/{period}")
-async def get_report(period: str):
-    """Fetch a completed financial report for a period."""
+async def get_report(
+    period: str,
+    _claims: dict = Depends(validate_entra_token),
+):
+    """Fetch a completed financial report. Validates Entra ID bearer token when present."""
     try:
         async with httpx.AsyncClient(timeout=180.0) as client:
             resp = await client.get(f"{ANALYSIS_ENDPOINT_URL}/reports/{period}")

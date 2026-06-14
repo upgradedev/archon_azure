@@ -9,3 +9,4 @@ httpx==0.28.1
 python-multipart==0.0.20
 python-dotenv==1.0.1
 azure-monitor-opentelemetry==1.6.4
+PyJWT[cryptography]==2.10.1
