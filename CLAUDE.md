@@ -77,7 +77,7 @@ Use `tf@upgrade.net.gr` for Azure CLI. Do NOT touch HEDNO subscriptions (d64d703
 | Key Vault + App Insights + narrative reframe | Done — PRs merged (session 5 continuation) |
 | Architecture SVG (`docs/architecture.svg`) | Done — in repo |
 | Playwright demo script (`scripts/demo-playwright.js`) | Done — in repo |
-| `demo/` artifact directory created | Done — outside repo at `C:\dev\solutions\private_nebius_aiserverless_challenge\demo\` |
+| `demo/` artifact directory created | Done — outside repo at `C:\dev\solutions\archon_challenge\demo\` |
 | Hackathon platform registration | Done — tf@upgrade.net.gr |
 | **Platform Project 1 — Reasoning Agents** | **Created** — title/tagline/keywords/challenge saved; description+repo+media still to add |
 | **Platform Project 2 — Enterprise Agents** | **Created** — title/tagline/keywords/challenge saved; description+repo+media still to add |
@@ -122,7 +122,7 @@ in upgradegr tenant for Graph API access — can be deleted after submission.
 
 ### Demo artifacts (outside repo)
 
-Location: `C:\dev\solutions\private_nebius_aiserverless_challenge\demo\`
+Location: `C:\dev\solutions\archon_challenge\demo\`
 
 | File | Status |
 |---|---|
