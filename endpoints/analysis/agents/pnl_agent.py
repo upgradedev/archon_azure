@@ -51,11 +51,15 @@ def build_pnl(period: str, docs: list[ExtractedDoc]) -> MonthlyPnL:
 
 
 def build_expense_breakdown(docs: list[ExtractedDoc]) -> list[ExpenseCategory]:
+    has_register = any(d.doc_type == "payroll_register" for d in docs)
     totals: dict[str, float] = defaultdict(float)
     for doc in docs:
-        if doc.doc_type in EXPENSE_DOC_TYPES:
-            cat = _categorise(doc)
-            totals[cat] += _effective_amount(doc)
+        if doc.doc_type not in EXPENSE_DOC_TYPES:
+            continue
+        if doc.doc_type in ("bank_confirmation", "payslip") and has_register:
+            continue  # already counted via register — same dedup logic as _compute_expenses
+        cat = _categorise(doc)
+        totals[cat] += _effective_amount(doc)
 
     grand_total = sum(totals.values()) or 1.0
     return [
@@ -70,13 +74,15 @@ def build_expense_breakdown(docs: list[ExtractedDoc]) -> list[ExpenseCategory]:
 
 
 def build_vendor_summary(docs: list[ExtractedDoc]) -> list[VendorSummary]:
+    has_register = any(d.doc_type == "payroll_register" for d in docs)
     totals: dict[str, float] = defaultdict(float)
     counts: dict[str, int] = defaultdict(int)
-    # Track payment dates per vendor to compute avg days to pay
     issue_dates: dict[str, list[str]] = defaultdict(list)
     payment_dates: dict[str, list[str]] = defaultdict(list)
 
     for doc in docs:
+        if doc.doc_type in ("bank_confirmation", "payslip") and has_register:
+            continue
         if doc.doc_type in EXPENSE_DOC_TYPES and doc.vendor_name:
             totals[doc.vendor_name] += doc.total_amount
             counts[doc.vendor_name] += 1
