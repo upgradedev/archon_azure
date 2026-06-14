@@ -64,7 +64,7 @@ Microsoft 365 Copilot Chat / Teams
         │ OpenAPI plugin   (m365-agent/openapi.json)
         ▼
 Archon FastAPI Backend (Azure Container Apps)
-  /api/analyze  →  6-agent pipeline + Foundry IQ summary
+  /api/analyze  →  7-agent pipeline + Foundry IQ summary
   /api/reports  →  cached financial reports
 ```
 
@@ -255,17 +255,15 @@ az staticwebapp create --name archon-frontend --resource-group archon-rg \
 
 ## Cloud Portability
 
-Archon is designed to be cloud-portable. Switch `JOB_RUNNER_BACKEND` and `AZURE_STORAGE_CONNECTION_STRING` env vars to run the same agent pipeline on Nebius, AWS, or GCP.
+Archon is designed to be cloud-portable. Switch `JOB_RUNNER_BACKEND` and `AZURE_STORAGE_CONNECTION_STRING` env vars to run the same agent pipeline on AWS or GCP.
 
-| Component | Azure | Nebius | AWS | GCP |
-|---|---|---|---|---|
-| Batch Job | Container Apps Job | AI Jobs | Batch | Cloud Run Jobs |
-| Endpoint | Container Apps | AI Endpoints | ECS | Cloud Run |
-| Storage | Blob Storage | Object Storage | S3 | GCS |
-| Database | PostgreSQL Flexible | Managed PostgreSQL | RDS | Cloud SQL |
-| LLM | Azure OpenAI | Inference API | Bedrock | Vertex AI |
-
-The Nebius version of this project is at: [`repos/nebius/`](../nebius/)
+| Component | Azure | AWS | GCP |
+|---|---|---|---|
+| Batch Job | Container Apps Job | Batch | Cloud Run Jobs |
+| Endpoint | Container Apps | ECS | Cloud Run |
+| Storage | Blob Storage | S3 | GCS |
+| Database | PostgreSQL Flexible | RDS | Cloud SQL |
+| LLM | Azure OpenAI | Bedrock | Vertex AI |
 
 ---
 

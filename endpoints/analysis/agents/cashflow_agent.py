@@ -3,10 +3,10 @@ CashFlowAgent — derives cash flow statement from P&L and document metadata.
 
 Single responsibility: produce a CashFlow model from available data.
 
-Cash flow is estimated from P&L at this stage. When Nebius Managed PostgreSQL
-is populated with historical data, this agent will switch to direct cash
-movement tracking (bank confirmations → operating outflows, sales receipts →
-operating inflows).
+Cash flow is estimated from document totals at this stage. When historical
+PostgreSQL data is available, this agent will switch to direct cash movement
+tracking (bank confirmations → operating outflows, sales receipts → operating
+inflows).
 """
 
 from models.financial import ExtractedDoc, CashFlow, MonthlyPnL

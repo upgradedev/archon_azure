@@ -2,8 +2,8 @@
 Local dev HTTP wrapper for the extraction job.
 
 Runs in docker compose as the 'extraction' service on port 8002.
-The backend's 'local' job runner POSTs to /extract instead of calling
-the Nebius CLI. Not used in production.
+The backend's 'local' job runner POSTs to /extract instead of submitting
+to the cloud job runner. Not used in production.
 
 Endpoints:
   POST /extract   { upload_id, period }  → { job_id }
