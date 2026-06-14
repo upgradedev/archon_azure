@@ -35,7 +35,6 @@ Configuration:
 
 import logging
 import os
-import time
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -176,20 +175,6 @@ def _foundry_agent_summary(prompt: str) -> str:
             client.agents.delete_agent(agent.id)
         except Exception:
             pass
-
-
-def _wait_for_run(client, thread_id: str, run_id: str, timeout: int = 90) -> None:
-    """Poll run status until terminal state or timeout."""
-    terminal = {"completed", "failed", "cancelled", "expired"}
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        run = client.agents.get_run(thread_id=thread_id, run_id=run_id)
-        if run.status in terminal:
-            if run.status != "completed":
-                raise RuntimeError(f"Foundry run ended with status={run.status}")
-            return
-        time.sleep(1.5)
-    raise TimeoutError(f"Foundry run did not complete within {timeout}s")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
