@@ -21,3 +21,6 @@ sample-data/generated/
 *.mp4
 *.mp3
 scripts/demo-output/
+frontend/e2e/auth.json
+frontend/playwright-report/
+frontend/test-results/
