@@ -277,9 +277,9 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
         { name: 'search-key', value: aiSearch.listAdminKeys().primaryKey }
         { name: 'pg-url', value: 'postgresql://archon_admin:${postgresAdminPassword}@${pgServer.properties.fullyQualifiedDomainName}:5432/archon' }
         // Foundry project connection string: <endpoint>;<sub>;<rg>;<project>
-        // discoveryUrl resolves to a generic regional URL; the azure-ai-projects SDK requires
-        // the workspace-specific API endpoint: https://<region>.api.azureml.ms
-        { name: 'foundry-conn', value: 'https://${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}' }
+        // azure-ai-projects SDK b10 expects NO https:// prefix — it adds the scheme itself.
+        // Including https:// causes host='https' DNS failure (SDKs splits on ; then adds https://).
+        { name: 'foundry-conn', value: '${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}' }
       ]
     }
     template: {
@@ -429,4 +429,4 @@ output openAIEndpoint string = openai.properties.endpoint
 output searchEndpoint string = 'https://${aiSearch.name}.search.windows.net'
 output postgresHost string = pgServer.properties.fullyQualifiedDomainName
 output foundryProjectName string = foundryProject.name
-output foundryConnectionString string = 'https://${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}'
+output foundryConnectionString string = '${location}.api.azureml.ms;${subscription().subscriptionId};${resourceGroup().name};${foundryProject.name}'

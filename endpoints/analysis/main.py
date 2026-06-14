@@ -189,8 +189,12 @@ def health_foundry():
         from azure.identity import DefaultAzureCredential
 
         result["stage"] = "client-init"
+        # Strip https:// prefix if present — SDK b10 expects bare FQDN in the endpoint part
+        _parts = conn_str.split(";")
+        if _parts[0].startswith("https://"):
+            _parts[0] = _parts[0][len("https://"):]
         client = AIProjectClient.from_connection_string(
-            conn_str=conn_str,
+            conn_str=";".join(_parts),
             credential=DefaultAzureCredential(),
         )
 
@@ -198,7 +202,11 @@ def health_foundry():
         search_conn = os.environ.get("AZURE_AI_SEARCH_CONNECTION_NAME", "archon-search")
         index_name  = os.environ.get("AZURE_AI_SEARCH_INDEX", "archon-knowledge")
         deployment  = os.environ.get("AZURE_OPENAI_ANALYSIS_DEPLOYMENT", "gpt-4o")
-        parts   = conn_str.split(";")
+        parts = conn_str.split(";")
+        if parts[0].startswith("https://"):
+            parts[0] = parts[0][len("https://"):]
+        conn_str = ";".join(parts)
+        result["conn_str_stripped"] = parts[0]
         conn_id = (
             f"/subscriptions/{parts[1]}/resourceGroups/{parts[2]}"
             f"/providers/Microsoft.MachineLearningServices/workspaces/{parts[3]}"
