@@ -59,7 +59,7 @@ export default function JobStatus({ jobId, onComplete }: Props) {
 
         <Text type="secondary">
           {job.status === 'pending'   && 'Waiting for GPU instance…'}
-          {job.status === 'running'   && `Processing ${job.documentsCount} documents with vision LLM…`}
+          {job.status === 'running'   && 'Processing documents with vision LLM…'}
           {job.status === 'completed' && 'All documents extracted. Loading analysis…'}
           {job.status === 'failed'    && (job.errorMessage ?? 'Job failed')}
         </Text>

@@ -11,9 +11,11 @@ export const api = {
     files: File[],
     period: string,
     onProgress?: (pct: number) => void,
+    fileNames?: string[],
   ): Promise<UploadResponse> => {
     const form = new FormData()
-    files.forEach(f => form.append('files', f))
+    // Pass explicit filename as third arg to override any OS temp-file name
+    files.forEach((f, i) => form.append('files', f, fileNames?.[i] ?? f.name))
     form.append('period', period)
     const { data } = await http.post<UploadResponse>('/api/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },

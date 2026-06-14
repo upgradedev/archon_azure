@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  Layout, Typography, Upload as AntUpload, Button, DatePicker,
+  Layout, Typography, Upload as AntUpload, Button,
   Steps, Card, Space, Alert, Tag, theme, Progress, Tooltip,
-  Table, Select, Checkbox,
+  Table, Select, Checkbox, Spin,
 } from 'antd'
 import {
   InboxOutlined, RocketOutlined, CheckCircleOutlined,
   EditOutlined, CalendarOutlined, WarningOutlined, CheckOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
-import dayjs from 'dayjs'
 import { api } from '../api/client'
 import JobStatus from '../components/JobStatus'
 import type { ExtractedDoc, DocType, CompanyProfile } from '../types/financial'
@@ -65,7 +65,13 @@ function detectPeriodFromFiles(files: UploadFile[]): string {
     for (let i = 0; i < MONTH_NAMES.length; i++) {
       if (name.includes(MONTH_NAMES[i])) {
         const ym = name.match(/(\d{4})/)
-        if (ym) return `${ym[1]}-${String(i + 1).padStart(2, '0')}`
+        if (ym) {
+          const year = Number(ym[1])
+          // Sanity check: only accept years in the plausible range
+          if (year >= 2020 && year <= new Date().getFullYear() + 1) {
+            return `${ym[1]}-${String(i + 1).padStart(2, '0')}`
+          }
+        }
       }
     }
   }
@@ -100,9 +106,23 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const [reviewLoading, setReviewLoading] = useState(false)
   const [confirming, setConfirming]       = useState(false)
 
+  // Analysis step state
+  const [analyzing, setAnalyzing]         = useState(false)
+  const [analyzeError, setAnalyzeError]   = useState<string | null>(null)
+
   useEffect(() => {
     if (fileList.length > 0) setDetectedPeriod(detectPeriodFromFiles(fileList))
   }, [fileList])
+
+  // Last 24 months for the period Select, capped at current month
+  const PERIOD_OPTIONS = useMemo(() => {
+    const now = new Date()
+    return Array.from({ length: 24 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      return { value: val, label: fmtPeriod(val) }
+    })
+  }, [])
 
   const handleSubmit = async () => {
     if (!detectedPeriod || fileList.length === 0) return
@@ -110,8 +130,9 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
     setSubmitting(true)
     setUploadPct(0)
     try {
-      const files = fileList.map(f => f.originFileObj as File)
-      const { uploadId } = await api.upload(files, detectedPeriod, setUploadPct)
+      const files     = fileList.map(f => f.originFileObj as File)
+      const fileNames = fileList.map(f => f.name)
+      const { uploadId } = await api.upload(files, detectedPeriod, setUploadPct, fileNames)
       const job = await api.submitJob(uploadId, detectedPeriod)
       setJobId(job.id)
       setStep(1)
@@ -140,9 +161,8 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       }))
       setReviewRows(rows)
     } catch {
-      // If review fetch fails, skip to done
-      setStep(3)
-      setTimeout(() => onComplete?.(detectedPeriod), 1000)
+      // If review fetch fails, skip straight to analysis
+      runAnalysis()
     } finally {
       setReviewLoading(false)
     }
@@ -166,8 +186,21 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       // Proceed regardless — analysis will use original extraction
     } finally {
       setConfirming(false)
-      setStep(3)
-      setTimeout(() => onComplete?.(detectedPeriod), 1000)
+      runAnalysis()
+    }
+  }
+
+  const runAnalysis = async () => {
+    setStep(3)
+    setAnalyzing(true)
+    setAnalyzeError(null)
+    try {
+      await api.analyze(detectedPeriod)
+      setStep(4)
+      setTimeout(() => onComplete?.(detectedPeriod), 1200)
+    } catch (err: unknown) {
+      setAnalyzeError(err instanceof Error ? err.message : 'Analysis failed')
+      setAnalyzing(false)
     }
   }
 
@@ -178,7 +211,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
     {
       title: '',
       key: 'include',
-      width: 40,
+      width: 36,
       render: (_: unknown, row: ReviewRow) => (
         <Checkbox
           checked={row._include}
@@ -189,16 +222,19 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
     {
       title: 'File',
       key: 'file',
+      ellipsis: true,
       render: (_: unknown, row: ReviewRow) => (
-        <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>
-          {row.source_file.split('/').pop()}
-        </Text>
+        <Tooltip title={row.source_file.split('/').pop()}>
+          <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>
+            {row.source_file.split('/').pop()}
+          </Text>
+        </Tooltip>
       ),
     },
     {
       title: 'Type',
       key: 'type',
-      width: 180,
+      width: 170,
       render: (_: unknown, row: ReviewRow) => (
         <Select<DocType>
           size="small"
@@ -211,29 +247,31 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       ),
     },
     {
-      title: 'Vendor',
-      key: 'vendor',
-      render: (_: unknown, row: ReviewRow) => (
-        <Text style={{ fontSize: 12 }}>{row.vendor_name ?? <Text type="secondary">—</Text>}</Text>
-      ),
+      title: 'Sender / Recipient',
+      key: 'party',
+      ellipsis: true,
+      render: (_: unknown, row: ReviewRow) => {
+        const sender    = row.vendor_name
+        const recipient = row.recipient_name
+        return (
+          <Space direction="vertical" size={0} style={{ gap: 0 }}>
+            {sender    && <Text style={{ fontSize: 11 }}>↑ {sender}</Text>}
+            {recipient && <Text style={{ fontSize: 11 }} type="secondary">↓ {recipient}</Text>}
+            {!sender && !recipient && <Text type="secondary">—</Text>}
+          </Space>
+        )
+      },
     },
     {
-      title: 'Recipient',
-      key: 'recipient',
-      render: (_: unknown, row: ReviewRow) => (
-        <Text style={{ fontSize: 12 }}>{row.recipient_name ?? <Text type="secondary">—</Text>}</Text>
-      ),
-    },
-    {
-      title: 'Status',
+      title: 'Match',
       key: 'status',
-      width: 110,
+      width: 90,
       render: (_: unknown, row: ReviewRow) => {
         if (row._status === 'matched')
-          return <Tag color="green" icon={<CheckOutlined />}>Matched</Tag>
+          return <Tag color="green" icon={<CheckOutlined />} style={{ fontSize: 10 }}>Matched</Tag>
         if (row._status === 'unrelated')
-          return <Tag color="orange" icon={<WarningOutlined />}>Review</Tag>
-        return <Tag color="default">—</Tag>
+          return <Tag color="orange" icon={<WarningOutlined />} style={{ fontSize: 10 }}>Review</Tag>
+        return <Tag color="default" style={{ fontSize: 10 }}>—</Tag>
       },
     },
   ]
@@ -250,10 +288,11 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
       <Steps
         current={step}
         items={[
-          { title: 'Select documents' },
-          { title: 'Extracting data' },
-          { title: 'Review documents' },
-          { title: 'Ready', icon: step === 3 ? <CheckCircleOutlined /> : undefined },
+          { title: 'Select' },
+          { title: 'Extract' },
+          { title: 'Review' },
+          { title: 'Analyse' },
+          { title: 'Ready', icon: step === 4 ? <CheckCircleOutlined /> : undefined },
         ]}
       />
 
@@ -291,27 +330,27 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
                 background: token.colorFillAlter,
                 border: `1px solid ${token.colorBorderSecondary}`,
                 borderRadius: token.borderRadius,
-                padding: '12px 16px',
+                padding: '10px 14px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
+                gap: 10,
+                flexWrap: 'wrap',
               }}>
                 <CalendarOutlined style={{ color: '#6366f1' }} />
                 {editingPeriod ? (
-                  <DatePicker
-                    picker="month"
-                    defaultValue={dayjs(detectedPeriod)}
-                    onChange={(_, s) => {
-                      setDetectedPeriod(s as string)
-                      setEditingPeriod(false)
-                    }}
+                  <Select
+                    size="small"
+                    defaultValue={detectedPeriod}
+                    options={PERIOD_OPTIONS}
+                    onChange={(v: string) => { setDetectedPeriod(v); setEditingPeriod(false) }}
                     onBlur={() => setEditingPeriod(false)}
+                    style={{ minWidth: 160 }}
                     autoFocus
-                    disabledDate={d => d.isAfter(dayjs())}
+                    open
                   />
                 ) : (
                   <>
-                    <Tooltip title="Each document's own date (issue_date) takes priority. This period is used only for documents where no date is found.">
+                    <Tooltip title="Each document's own date (issue_date) takes priority. This period is used only for documents where no date is detected.">
                       <Text>
                         Fallback period: <strong>{fmtPeriod(detectedPeriod)}</strong>
                       </Text>
@@ -390,7 +429,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
                     showIcon
                     icon={<WarningOutlined />}
                     message={`${unrelated.length} document${unrelated.length !== 1 ? 's' : ''} may not belong to ${companyProfile?.company_name || 'your company'}`}
-                    description="Review the highlighted rows below. Uncheck any document you want to exclude from analysis."
+                    description="Review the highlighted rows. Uncheck any document you want to exclude from analysis."
                   />
                 )}
 
@@ -401,7 +440,7 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
                   dataSource={reviewRows}
                   rowKey={r => r._key}
                   rowClassName={r => r._status === 'unrelated' && r._include ? 'row-warn' : ''}
-                  scroll={{ x: 700 }}
+                  scroll={{ x: 560 }}
                 />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -413,9 +452,9 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
                     loading={confirming}
                     disabled={included.length === 0}
                     onClick={handleConfirm}
-                    icon={<CheckCircleOutlined />}
+                    icon={<ThunderboltOutlined />}
                   >
-                    Confirm {included.length} document{included.length !== 1 ? 's' : ''}
+                    Confirm & Run Analysis
                   </Button>
                 </div>
               </>
@@ -424,11 +463,37 @@ export default function UploadPage({ onComplete }: UploadPageProps = {}) {
         </Card>
       )}
 
-      {/* ── Step 3: done ────────────────────────────────────────────── */}
+      {/* ── Step 3: analysis running ─────────────────────────────────── */}
       {step === 3 && (
+        <Card>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            {analyzing && (
+              <>
+                <Space>
+                  <Spin />
+                  <Text strong>Running 7-agent analysis pipeline…</Text>
+                </Space>
+                <Progress percent={70} status="active" />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Classifier → P&L → Cash Flow → Employee → Validator → Reconciliation → Narrator
+                </Text>
+              </>
+            )}
+            {analyzeError && (
+              <>
+                <Alert type="error" message={`Analysis failed: ${analyzeError}`} showIcon />
+                <Button type="primary" onClick={runAnalysis}>Retry</Button>
+              </>
+            )}
+          </Space>
+        </Card>
+      )}
+
+      {/* ── Step 4: done ────────────────────────────────────────────── */}
+      {step === 4 && (
         <Alert
           type="success"
-          message="Extraction complete — returning to dashboard…"
+          message="Analysis complete — returning to dashboard…"
           showIcon
         />
       )}

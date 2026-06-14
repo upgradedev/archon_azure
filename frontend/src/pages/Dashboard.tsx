@@ -645,7 +645,7 @@ export default function DashboardPage() {
         open={!!activeTile}
         onCancel={() => setActiveTile(null)}
         footer={null}
-        width={700}
+        width={Math.min(window.innerWidth - 48, 1100)}
       >
         {activeTile && (
           docsLoading
@@ -657,6 +657,7 @@ export default function DashboardPage() {
                 dataSource={allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))}
                 rowKey={(d) => `${d.period}-${d.source_file}`}
                 locale={{ emptyText: 'No documents found for this category' }}
+                scroll={{ x: 800 }}
               />
         )}
       </Modal>
