@@ -414,22 +414,11 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
   dependsOn: [acaEnv, analysisApp]
 }
 
-// Role assignment: Contributor on the Foundry project for the analysis Container App
-// managed identity. Contributor is required because "Azure AI Developer" (ARM RBAC)
-// does NOT include Microsoft.MachineLearningServices/workspaces/agents/action which the
-// azure-ai-projects SDK needs to create and run Foundry agents. Scoped to archon-project
-// only — not subscription or RG level.
-resource analysisFoundryContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  // Deterministic GUID — idempotent across redeploys
-  name: guid(foundryProject.id, analysisApp.identity.principalId, 'b24988ac-6180-42a0-ab88-20f7382dd24c')
-  scope: foundryProject
-  properties: {
-    // Contributor built-in role
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
-    principalId: analysisApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
+// NOTE: Contributor role on archon-project for the analysis managed identity is assigned
+// manually (az rest PUT roleAssignments) — assignment ID ce86e394-f468-521c-8c15-10d0fbb0fa98.
+// Not managed by Bicep because the GitHub Actions SP lacks roleAssignments/write on the
+// ML workspace scope. Required for azure-ai-projects SDK to create Foundry agents
+// (workspaces/agents/action is not in the Azure AI Developer built-in role).
 
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
