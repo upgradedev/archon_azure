@@ -10,6 +10,20 @@ router = APIRouter()
 ANALYSIS_ENDPOINT_URL = os.getenv("ANALYSIS_ENDPOINT_URL", "http://analysis:8001")
 
 
+@router.get("/periods")
+async def list_periods(_claims: dict = Depends(validate_entra_token)):
+    """List reporting periods that have extracted documents in blob storage."""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(f"{ANALYSIS_ENDPOINT_URL}/periods")
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:300]) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Analysis endpoint error: {exc}") from exc
+
+
 class AnalyzeRequest(BaseModel):
     period: str
 

@@ -5,7 +5,6 @@ import {
 } from 'antd'
 import { InboxOutlined, RocketOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
-import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 import JobStatus from '../components/JobStatus'
@@ -17,9 +16,12 @@ const { useToken } = theme
 
 const ACCEPTED_TYPES = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff,.tif,.webp'
 
-export default function UploadPage() {
+interface UploadPageProps {
+  onComplete?: (period: string) => void
+}
+
+export default function UploadPage({ onComplete }: UploadPageProps = {}) {
   const { token } = useToken()
-  const navigate = useNavigate()
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [period, setPeriod] = useState<string>('')
   const [step, setStep] = useState(0)
@@ -46,17 +48,17 @@ export default function UploadPage() {
 
   const handleJobComplete = () => {
     setStep(2)
-    setTimeout(() => navigate(`/dashboard/${period}`), 1500)
+    setTimeout(() => onComplete?.(period), 1500)
   }
 
-  return (
-    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
-      <Content style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px' }}>
-        <Space direction="vertical" size={32} style={{ width: '100%' }}>
-          <div>
-            <Title level={2} style={{ margin: 0 }}>Archon</Title>
-            <Text type="secondary">Agentic Financial Intelligence — upload documents, get P&L insights</Text>
-          </div>
+  const inner = (
+    <Space direction="vertical" size={32} style={{ width: '100%' }}>
+          {!onComplete && (
+            <div>
+              <Title level={2} style={{ margin: 0 }}>Archon</Title>
+              <Text type="secondary">Agentic Financial Intelligence — upload documents, get P&L insights</Text>
+            </div>
+          )}
 
           <Steps
             current={step}
@@ -144,6 +146,16 @@ export default function UploadPage() {
             />
           )}
         </Space>
+  )
+
+  if (onComplete) {
+    return <div style={{ padding: 24 }}>{inner}</div>
+  }
+
+  return (
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
+      <Content style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px' }}>
+        {inner}
       </Content>
     </Layout>
   )

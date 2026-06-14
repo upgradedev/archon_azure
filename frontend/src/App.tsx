@@ -1,6 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ConfigProvider, theme } from 'antd'
-import Upload from './pages/Upload'
 import Dashboard from './pages/Dashboard'
 
 export default function App() {
@@ -17,9 +16,7 @@ export default function App() {
     >
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/upload" replace />} />
-          <Route path="/upload" element={<Upload />} />
-          <Route path="/dashboard/:period" element={<Dashboard />} />
+          <Route path="/*" element={<Dashboard />} />
         </Routes>
       </BrowserRouter>
     </ConfigProvider>
