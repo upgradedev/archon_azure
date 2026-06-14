@@ -61,11 +61,15 @@ Stop and investigate before proceeding if CI is red or env var count drops.
 **Decision:** Every `field: SomeType | None` must have `= None` as a default.
 **Reason:** Pydantic v2 treats `field: str | None` (no default) as required. Constructors that omit it raise `ValidationError`.
 
-## Current status (2026-06-14, session 4)
+## Current status (2026-06-14, session 5)
 
-**master:** `6f93cf1` — 6 PRs merged this session (#1–#6)
-**CI:** GREEN — smoke-test + deploy both passing
+**master:** `a266cf5` — PRs #8–#14 merged this session (Foundry IQ debugging chain)
+**CI:** GREEN — smoke-test + deploy passing (PR #13 deploy succeeded; PR #14 deploy in progress)
 **Live deployment:** All Azure Container Apps running (westeurope)
+
+### Subscription note (CRITICAL)
+Archon is in **subscription `41f8b1f2-174f-4523-98d7-6ec4adea0806`** (tf Sponsorship, upgradegr tenant 2bcb5033).
+Use `tf@upgrade.net.gr` for Azure CLI. Do NOT touch HEDNO subscriptions (d64d7037, etc.).
 
 | Item | State |
 |---|---|
@@ -77,6 +81,12 @@ Stop and investigate before proceeding if CI is red or env var count drops.
 | Seed-demo purges stale blobs first | Done — 2910bd1 |
 | Sales invoice added to demo data (revenue > 0) | Done — 6f93cf1 |
 | **E2E test result: ALL 22 CHECKS PASSED** | **VERIFIED LIVE** |
+| Foundry IQ — https:// prefix stripped | Done — 9cd9313 |
+| Foundry IQ — connections.get() bypassed | Done — 8ea5c14 |
+| Foundry IQ — Contributor role on archon-project | Done — az rest (ce86e394) — 2026-06-14 |
+| Foundry IQ — Azure OpenAI connection in Foundry project | Done — az rest — 2026-06-14 |
+| Foundry IQ — MessageRole.AGENT fix | Done — a266cf5 |
+| **Foundry IQ — PENDING DEPLOY VERIFICATION** | **Deploy in progress** |
 
 ### Live endpoints
 
@@ -110,7 +120,7 @@ The test auto-seeds 8 demo documents via `POST /seed-demo` on the analysis conta
 
 | Gap | Notes |
 |---|---|
-| Foundry IQ narrator on FALLBACK path | executiveSummary shows fallback text, not Foundry-grounded summary with "Sources:". Root cause: `AZURE_AI_PROJECT_CONNECTION_STRING` may be missing or malformed in the analysis Container App env. Investigate via Azure Portal → archon-analysis → Environment variables. |
+| Foundry IQ narrator | Deploy in progress (PR #14); test with `/health/foundry` after deploy |
 | M365 agent not sideloaded | User action: Teams Admin Center → m365-agent/archon-agent.zip |
 | Demo video not recorded | User action: 5 min, follow docs/demo-script.md |
 | Submission not filed | User action: https://aka.ms/agentsleague/aisf — DEADLINE TODAY June 14 23:59 PT |
