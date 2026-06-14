@@ -7,12 +7,19 @@ const http = axios.create({
 })
 
 export const api = {
-  upload: async (files: File[], period: string): Promise<UploadResponse> => {
+  upload: async (
+    files: File[],
+    period: string,
+    onProgress?: (pct: number) => void,
+  ): Promise<UploadResponse> => {
     const form = new FormData()
     files.forEach(f => form.append('files', f))
     form.append('period', period)
     const { data } = await http.post<UploadResponse>('/api/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total))
+      },
     })
     return data
   },
@@ -39,6 +46,11 @@ export const api = {
 
   getPeriods: async (): Promise<{ periods: string[] }> => {
     const { data } = await http.get<{ periods: string[] }>('/api/periods')
+    return data
+  },
+
+  deletePeriod: async (period: string): Promise<{ deleted: number; period: string }> => {
+    const { data } = await http.delete(`/api/periods/${period}`)
     return data
   },
 }
