@@ -273,13 +273,15 @@ resource analysisApp 'Microsoft.App/containerApps@2024-03-01' = {
       }]
       secrets: [
         { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
-        { name: 'storage-conn', keyVaultUrl: '${keyVault.properties.vaultUri}secrets/storage-conn', identity: 'system' }
-        { name: 'openai-key',   keyVaultUrl: '${keyVault.properties.vaultUri}secrets/openai-key',   identity: 'system' }
-        { name: 'search-key',   keyVaultUrl: '${keyVault.properties.vaultUri}secrets/search-key',   identity: 'system' }
-        { name: 'pg-url',       keyVaultUrl: '${keyVault.properties.vaultUri}secrets/pg-url',       identity: 'system' }
+        // keyVaultUrl uses secretUriWithoutVersion so ARM implicitly depends on the KV secret
+        // resources being created before the Container App revision is provisioned.
+        { name: 'storage-conn', keyVaultUrl: kvSecretStorageConn.properties.secretUriWithoutVersion, identity: 'system' }
+        { name: 'openai-key',   keyVaultUrl: kvSecretOpenaiKey.properties.secretUriWithoutVersion,   identity: 'system' }
+        { name: 'search-key',   keyVaultUrl: kvSecretSearchKey.properties.secretUriWithoutVersion,   identity: 'system' }
+        { name: 'pg-url',       keyVaultUrl: kvSecretPgUrl.properties.secretUriWithoutVersion,       identity: 'system' }
         // Foundry project connection string: <endpoint>;<sub>;<rg>;<project>
         // azure-ai-projects SDK b10 expects NO https:// prefix — it adds the scheme itself.
-        { name: 'foundry-conn', keyVaultUrl: '${keyVault.properties.vaultUri}secrets/foundry-conn', identity: 'system' }
+        { name: 'foundry-conn', keyVaultUrl: kvSecretFoundryConn.properties.secretUriWithoutVersion, identity: 'system' }
       ]
     }
     template: {
@@ -357,9 +359,9 @@ resource backendApp 'Microsoft.App/containerApps@2024-03-01' = {
       }]
       secrets: [
         { name: 'acr-password', value: acr.listCredentials().passwords[0].value }
-        { name: 'storage-conn', keyVaultUrl: '${keyVault.properties.vaultUri}secrets/storage-conn', identity: 'system' }
-        { name: 'pg-url',       keyVaultUrl: '${keyVault.properties.vaultUri}secrets/pg-url',       identity: 'system' }
-        { name: 'openai-key',   keyVaultUrl: '${keyVault.properties.vaultUri}secrets/openai-key',   identity: 'system' }
+        { name: 'storage-conn', keyVaultUrl: kvSecretStorageConn.properties.secretUriWithoutVersion, identity: 'system' }
+        { name: 'pg-url',       keyVaultUrl: kvSecretPgUrl.properties.secretUriWithoutVersion,       identity: 'system' }
+        { name: 'openai-key',   keyVaultUrl: kvSecretOpenaiKey.properties.secretUriWithoutVersion,   identity: 'system' }
       ]
     }
     template: {
