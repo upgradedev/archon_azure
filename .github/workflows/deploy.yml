@@ -98,14 +98,14 @@ jobs:
                   environment="${{ github.event.inputs.environment || 'prod' }}" \
                   openaiLocation="swedencentral" \
                   openaiKey="${{ steps.openai_key.outputs.key }}" \
-              --output json 2>&1)
+              --output json 2>/tmp/arm_stderr.txt)
             EXIT_CODE=$?
             if [ $EXIT_CODE -eq 0 ]; then
               DEPLOY_OK=1
               break
             fi
             echo "=== Attempt $attempt FAILED (exit code: $EXIT_CODE) ==="
-            echo "$OUTPUT" | tail -60
+            cat /tmp/arm_stderr.txt | tail -60
             echo "========================================================="
             if [ $attempt -lt 3 ]; then
               echo "Waiting 180s before retry..."
