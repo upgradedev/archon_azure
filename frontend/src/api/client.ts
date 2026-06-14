@@ -36,4 +36,9 @@ export const api = {
     const { data } = await http.get<AnalysisResponse>(`/api/reports/${period}`)
     return data
   },
+
+  getPeriods: async (): Promise<{ periods: string[] }> => {
+    const { data } = await http.get<{ periods: string[] }>('/api/periods')
+    return data
+  },
 }

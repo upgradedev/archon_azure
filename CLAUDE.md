@@ -61,49 +61,87 @@ Stop and investigate before proceeding if CI is red or env var count drops.
 **Decision:** Every `field: SomeType | None` must have `= None` as a default.
 **Reason:** Pydantic v2 treats `field: str | None` (no default) as required. Constructors that omit it raise `ValidationError`.
 
-## Current status (2026-06-14, session 5)
+## Current status (2026-06-14, session 6 — submission day)
 
-**master:** `a266cf5` — PRs #8–#14 merged this session (Foundry IQ debugging chain)
-**CI:** GREEN — smoke-test + deploy passing (PR #13 deploy succeeded; PR #14 deploy in progress)
-**Live deployment:** All Azure Container Apps running (westeurope)
+**master:** `a266cf5` — all PRs merged, CI GREEN, all Azure infra live
+**Deadline:** June 14, 2026 23:59 PT (~15h remaining as of 08:50 PDT)
 
 ### Subscription note (CRITICAL)
 Archon is in **subscription `41f8b1f2-174f-4523-98d7-6ec4adea0806`** (tf Sponsorship, upgradegr tenant 2bcb5033).
 Use `tf@upgrade.net.gr` for Azure CLI. Do NOT touch HEDNO subscriptions (d64d7037, etc.).
 
+### Completed this session (session 6)
+
 | Item | State |
 |---|---|
-| All 16 audit issues fixed (B1,B2,H1-H6,M1-M6) | Done — ff7113f |
-| Dead code + EventLinker tests | Done — 61b5f53 |
-| Analysis startup crash + deploy jq error | Done — 6cc425e |
-| `scripts/e2e-live.py` — live e2e test | Done — 9e2f834 |
-| `/seed-demo` endpoint on analysis container | Done — f023b5c |
-| Seed-demo purges stale blobs first | Done — 2910bd1 |
-| Sales invoice added to demo data (revenue > 0) | Done — 6f93cf1 |
-| **E2E test result: ALL 22 CHECKS PASSED** | **VERIFIED LIVE** |
-| Foundry IQ — https:// prefix stripped | Done — 9cd9313 |
-| Foundry IQ — connections.get() bypassed | Done — 8ea5c14 |
-| Foundry IQ — Contributor role on archon-project | Done — az rest (ce86e394) — 2026-06-14 |
-| Foundry IQ — Azure OpenAI connection in Foundry project | Done — az rest — 2026-06-14 |
-| Foundry IQ — MessageRole.AGENT fix | Done — a266cf5 |
-| **Foundry IQ — ALL 23 CHECKS PASSED** | **VERIFIED LIVE (5638950)** |
+| Key Vault + App Insights + narrative reframe | Done — PRs merged (session 5 continuation) |
+| Architecture SVG (`docs/architecture.svg`) | Done — in repo |
+| Playwright demo script (`scripts/demo-playwright.js`) | Done — in repo |
+| `demo/` artifact directory created | Done — outside repo at `C:\dev\solutions\private_nebius_aiserverless_challenge\demo\` |
+| Hackathon platform registration | Done — tf@upgrade.net.gr |
+| **Platform Project 1 — Reasoning Agents** | **Created** — title/tagline/keywords/challenge saved; description+repo+media still to add |
+| **Platform Project 2 — Enterprise Agents** | **Created** — title/tagline/keywords/challenge saved; description+repo+media still to add |
+| `demo.webm` recorded (Playwright, 5 min, 15 MB) | **Done** — `scripts/demo-output/demo.webm` |
+| ffmpeg 8.1.1 installed | Done — WinGet, full path in `demo/ffmpeg-combine.ps1` |
+| Teams app zip — manifest fixed (devPreview) | Done — `m365-agent/archon-agent.zip` rebuilt |
+| **E2E: ALL 23 CHECKS PASSED** | **VERIFIED LIVE** |
+| **Foundry IQ: citations verified live** | **VERIFIED** |
+
+### Open gaps — deadline order
+
+| Priority | Gap | Notes |
+|---|---|---|
+| P0 | Add description + repo to both platform projects | Paste from `demo/submission-reasoning-agents.md` + `demo/submission-enterprise-agents.md` |
+| P0 | Teams agent sideload | Teams Developer Portal → DevPreview → import zip → Continue past errors → Preview in Teams → record 40s |
+| P0 | ElevenLabs narration MP3 | Paste `docs/demo-script.md` narration text → export MP3 → `demo/narration.mp3` |
+| P0 | Merge video + narration | Run `demo/ffmpeg-combine.ps1` → `demo/archon-demo.mp4` |
+| P0 | Upload to YouTube (public) | Add URL to both platform projects + Discord |
+| P0 | Submit both platform projects | https://aka.ms/agentsleague/aisf |
+| P0 | Post Discord | Paste from `demo/discord-announcement.md` at https://aka.ms/agentsleague/discord |
+| P1 | Backend bearer token enforcement | FastAPI middleware to validate Entra ID JWT — declared in openapi.json but not enforced in code |
+| P1 | MCP server (bonus criteria) | External MCP read/write = "Higher Rating"; ~2h work; significant score boost |
+
+### Gap analysis vs Enterprise Agents track rubric
+
+| Requirement | Status |
+|---|---|
+| M365 Copilot Chat Agent (REQUIRED) | ✅ Declarative agent in `m365-agent/` |
+| Microsoft IQ Integration (REQUIRED) | ✅ Foundry IQ — AzureAISearchTool, ephemeral agents, citations verified |
+| MCP Apps (bonus — Higher Rating) | ❌ Not implemented |
+| External MCP Server (optional) | ❌ Not implemented |
+| OAuth for MCP (optional) | ❌ N/A |
+| Bearer auth enforced on backend | ⚠️ Declared in openapi.json but not validated in FastAPI code |
+
+### Teams app manifest notes
+
+`m365-agent/archon-agent.zip` requires `manifestVersion: devPreview` (not `1.17`) because
+`copilotAgents` is a devPreview-only schema property. Graph API `appCatalogs/teamsApps`
+(both v1.0 and beta) rejects this schema — upload ONLY via Teams Developer Portal (DevPreview mode)
+or Teams client direct sideload. Custom AAD app `4bf12dfb-a136-47d8-8cba-40acc9f17b54` created
+in upgradegr tenant for Graph API access — can be deleted after submission.
+
+### Demo artifacts (outside repo)
+
+Location: `C:\dev\solutions\private_nebius_aiserverless_challenge\demo\`
+
+| File | Status |
+|---|---|
+| `submission-reasoning-agents.md` | Ready to paste |
+| `submission-enterprise-agents.md` | Ready to paste |
+| `discord-announcement.md` | Ready to paste |
+| `youtube-description.md` | Ready to paste |
+| `recording-checklist.md` | Done |
+| `start-frontend.ps1` | Done |
+| `ffmpeg-combine.ps1` | Done (uses full ffmpeg path — no shell restart needed) |
+| `narration.mp3` | **MISSING — generate from ElevenLabs** |
+| `archon-demo.mp4` | **MISSING — run ffmpeg-combine.ps1 after narration** |
 
 ### Live endpoints
 
 | URL | Service |
 |---|---|
 | https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io | FastAPI backend |
-| https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io | Analysis endpoint |
-
-### E2E test
-
-Run anytime against the live deployment:
-
-```bash
-python scripts/e2e-live.py
-```
-
-The test auto-seeds 8 demo documents via `POST /seed-demo` on the analysis container (purges stale data first — idempotent). No credentials needed.
+| https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io | Analysis endpoint (7-agent) |
 
 ### Live demo P&L (2026-01)
 
@@ -114,15 +152,7 @@ The test auto-seeds 8 demo documents via `POST /seed-demo` on the analysis conta
 | Net Profit | €911.61 |
 | Employer cost (register) | €6,930.00 |
 | Bank transfer (net) | €3,994.74 |
-| **28% gap ratio** | **1.735 × (confirmed live)** |
-
-### Known gaps (open before submission)
-
-| Gap | Notes |
-|---|---|
-| M365 agent not sideloaded | User action: Teams Admin Center → m365-agent/archon-agent.zip |
-| Demo video not recorded | User action: 5 min, follow docs/demo-script.md |
-| Submission not filed | User action: https://aka.ms/agentsleague/aisf — DEADLINE TODAY June 14 23:59 PT |
+| **Payroll gap ratio** | **1.735 × (confirmed live)** |
 
 ## Alice standards that apply (adapted for GitHub)
 
