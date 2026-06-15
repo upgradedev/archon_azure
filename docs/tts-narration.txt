@@ -15,11 +15,9 @@ The bank statement records what arrived and left. Net amounts only. It is incomp
 
 The payroll register holds the full employer cost — gross salaries plus employer social contributions — the number that actually belongs in your P and L.
 
-Invoices and receipts capture revenue and supplier costs. Each one is a fragment of the full picture.
-
 Individual payslips break down each employee's allocation — gross pay, deductions, tax withholding per person. They cross-check the register total.
 
-These four documents describe the same month. But you cannot match them by amount alone. They require context. They require correlation. Most businesses record only the bank line. The result is a P and L that understates the true cost — and does not comply with the accounting standard that requires the full employer benefit expense.
+These four documents describe the same month. But you cannot match them by amount alone. They require context. They require correlation. Most businesses record only the bank line — and their P and L understates the true cost.
 
 
 Archon solves this in three steps.
@@ -39,9 +37,7 @@ Archon runs entirely on Microsoft Azure.
 
 The extraction phase uses GPT-4o vision to read scanned documents. The Event Linker groups related records. The Validator runs four cross-document consistency checks.
 
-The analysis phase runs three more agents — P and L, Cash Flow, and Employee — each focused on one part of the financial picture.
-
-The final agent — the Narrator — runs inside Azure AI Foundry using Foundry I-Q grounding. It connects to an Azure AI Search knowledge index containing international accounting standards and local regulatory documents.
+The final agent — the Narrator — runs inside Azure AI Foundry using Foundry I-Q grounding. It connects to an Azure AI Search knowledge index of accounting standards and regulatory documents.
 
 Before writing a single sentence of the executive summary, the Narrator retrieves the relevant standard and cites it. Not generated from training data. Retrieved, verified, cited.
 
@@ -50,7 +46,7 @@ Let me show you Archon in action.
 
 I am opening the upload panel. Our demo set includes documents that a typical small business would generate in a single month: a bank statement, a payroll register, and individual payslips.
 
-The extraction job runs on Azure Container Apps Jobs — compute spins up on demand, processes the documents, and shuts down. No idle cost.
+The extraction job runs on Azure Container Apps Jobs — compute spins up on demand, processes the documents, and shuts down.
 
 
 The dashboard is live.
@@ -63,7 +59,7 @@ The Validator passed all four consistency checks. The expense breakdown chart sh
 
 The executive summary is written by the Narrator agent. Notice the Sources line at the bottom — every regulatory document cited there was retrieved, not invented.
 
-That is not a language model generating plausible financial commentary. That is retrieval-augmented generation. The Narrator agent queried the Azure AI Search knowledge index, retrieved the relevant standard, grounded its analysis against it, and cited the source. Every claim in this summary is backed by a document. Foundry I-Q makes that possible.
+That is not a language model generating plausible financial commentary. That is retrieval-augmented generation — the Narrator queried the knowledge index, retrieved the relevant standard, and cited it. Every claim is backed by a retrieved document. Foundry I-Q makes that possible.
 
 
 Archon also lives inside Microsoft Teams as a declarative Copilot agent.
@@ -74,12 +70,8 @@ Archon calls the backend, retrieves the report, and answers in natural language 
 
 No spreadsheet. No phone call to the accountant. The answer is one message away, in the tool the team already uses every day.
 
-This is Enterprise Agents: financial intelligence connected to Microsoft 365, available to any member of the organisation.
-
 
 Seven agents. Four document types. One grounded financial truth.
-
-Archon is open source — MIT licence — at github dot com slash upgradedev slash archon underscore azure.
 
 Microsoft Agents League, AI Skills Fest 2026. Reasoning Agents and Enterprise Agents.
 
