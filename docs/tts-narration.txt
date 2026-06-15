@@ -55,8 +55,6 @@ Revenue is shown net of tax — the actual income, not the invoice face value.
 
 The Expenses tile reflects the true employer cost from the payroll register — not the net bank transfer. The difference between those two numbers is the cost that most businesses miss.
 
-The Validator passed all four consistency checks. The expense breakdown chart shows where the money actually went. Everything is cross-referenced, reconciled, and accurate.
-
 The executive summary is written by the Narrator agent. Notice the Sources line at the bottom — every regulatory document cited there was retrieved, not invented.
 
 That is not a language model generating plausible financial commentary. That is retrieval-augmented generation — the Narrator queried the knowledge index, retrieved the relevant standard, and cited it. Every claim is backed by a retrieved document. Foundry I-Q makes that possible.
