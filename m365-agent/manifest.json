@@ -24,7 +24,7 @@
   "actions": [
     {
       "id": "archon-api",
-      "file": "openapi.json"
+      "file": "api-plugin.json"
     }
   ],
   "capabilities": [
