@@ -300,11 +300,20 @@ export default function DashboardPage() {
       render: (v: string | null) => v
         ? v
         : <Tag color="warning" style={{ fontSize: 10 }}>Not detected</Tag> },
-    { title: 'Amount', dataIndex: 'total_amount', key: 'total_amount',
+    { title: 'Total (incl. VAT)', dataIndex: 'total_amount', key: 'total_amount',
       align: 'right' as const,
       render: (v: number, d: ExtractedDoc) => (
         <span style={{ color: d.doc_type === 'sales' ? '#22c55e' : '#f43f5e' }}>{EUR(v)}</span>
       )},
+    { title: 'Net (ex-VAT)', key: 'net_exvat', align: 'right' as const,
+      render: (_: unknown, d: ExtractedDoc) => {
+        const net = d.subtotal != null ? d.subtotal
+                  : d.vat_amount != null ? d.total_amount - d.vat_amount
+                  : null
+        if (net == null || Math.abs(net - d.total_amount) < 0.01)
+          return <Text type="secondary" style={{ fontSize: 11 }}>—</Text>
+        return <span style={{ color: d.doc_type === 'sales' ? '#22c55e' : '#f43f5e' }}>{EUR(net)}</span>
+      }},
     { title: 'Confidence', dataIndex: 'confidence', key: 'confidence',
       render: (v: number) => <Text type="secondary" style={{ fontSize: 11 }}>{(v * 100).toFixed(0)}%</Text> },
   ]
@@ -767,15 +776,71 @@ export default function DashboardPage() {
         {activeTile && (
           docsLoading
             ? <div style={{ textAlign: 'center', padding: 32 }}><Spin tip="Loading documents…" /></div>
-            : <Table
-                size="small"
-                pagination={{ pageSize: 20, size: 'small' }}
-                columns={DOC_COLUMNS}
-                dataSource={allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))}
-                rowKey={(d) => `${d.period}-${d.source_file}`}
-                locale={{ emptyText: TILE_EMPTY_TEXT[activeTile] ?? 'No documents found for this category' }}
-                scroll={{ x: 800 }}
-              />
+            : activeTile === 'Cash Net'
+            ? (() => {
+                type CfRow = { key: string; label: string; value: number; bold?: boolean; total?: boolean; sub?: boolean }
+                const cfRows: CfRow[] = [
+                  { key: 'sales',        label: 'Sales receipts (estimated)',  value:  allDocs.filter(d => d.doc_type === 'sales').reduce((s, d) => s + d.total_amount, 0), sub: true },
+                  { key: 'payroll_out',  label: 'Payroll bank transfers',      value: -allDocs.filter(d => d.doc_type === 'bank_confirmation').reduce((s, d) => s + d.total_amount, 0), sub: true },
+                  { key: 'invoices_out', label: 'Supplier invoices',           value: -allDocs.filter(d => ['invoice','expense'].includes(d.doc_type)).reduce((s, d) => s + d.total_amount, 0), sub: true },
+                  { key: 'operating',    label: 'Operating Cash Flow',         value: report?.cashFlow.operating ?? 0, bold: true },
+                  { key: 'investing',    label: 'Investing Activities',        value: report?.cashFlow.investing ?? 0, sub: true },
+                  { key: 'financing',    label: 'Financing Activities',        value: report?.cashFlow.financing ?? 0, sub: true },
+                  { key: 'net',          label: 'Net Cash Flow',               value: report?.cashFlow.net ?? 0, total: true },
+                ]
+                return (
+                  <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                    <Alert type="info" showIcon message="Cash Net is estimated from available documents"
+                      description="Operating cash = sales receipts − bank payroll transfers − supplier invoices. Upload bank income confirmation documents for actual figures." />
+                    <Table<CfRow>
+                      size="small"
+                      pagination={false}
+                      dataSource={cfRows}
+                      rowKey="key"
+                      columns={[
+                        { title: 'Component', dataIndex: 'label', key: 'label',
+                          render: (v: string, r: CfRow) =>
+                            r.total ? <strong style={{ color: '#38bdf8' }}>{v}</strong>
+                            : r.bold ? <strong>{v}</strong>
+                            : <Text type="secondary" style={{ paddingLeft: 20 }}>{v}</Text> },
+                        { title: 'Amount', dataIndex: 'value', key: 'value', align: 'right' as const,
+                          render: (v: number, r: CfRow) => (
+                            <span style={{ color: v >= 0 ? '#22c55e' : '#f43f5e', fontWeight: (r.bold || r.total) ? 700 : 400 }}>
+                              {EUR(v)}
+                            </span>
+                          )},
+                      ]}
+                    />
+                  </Space>
+                )
+              })()
+            : (
+              <>
+                {activeTile === 'Invoices' && (() => {
+                  const tileDocs = allDocs.filter(d => TILE_DOC_TYPES['Invoices']?.includes(d.doc_type))
+                  if (tileDocs.length === 0) return null
+                  const salesN    = tileDocs.filter(d => d.doc_type === 'sales').length
+                  const purchaseN = tileDocs.filter(d => d.doc_type === 'invoice').length
+                  const expenseN  = tileDocs.filter(d => d.doc_type === 'expense').length
+                  return (
+                    <div style={{ marginBottom: 10 }}>
+                      {salesN    > 0 && <Tag color="green">{salesN} sales</Tag>}
+                      {purchaseN > 0 && <Tag color="orange">{purchaseN} purchase</Tag>}
+                      {expenseN  > 0 && <Tag color="red">{expenseN} expense</Tag>}
+                    </div>
+                  )
+                })()}
+                <Table
+                  size="small"
+                  pagination={{ pageSize: 20, size: 'small' }}
+                  columns={DOC_COLUMNS}
+                  dataSource={allDocs.filter(d => TILE_DOC_TYPES[activeTile]?.includes(d.doc_type))}
+                  rowKey={(d) => `${d.period}-${d.source_file}`}
+                  locale={{ emptyText: TILE_EMPTY_TEXT[activeTile] ?? 'No documents found for this category' }}
+                  scroll={{ x: 950 }}
+                />
+              </>
+            )
         )}
       </Modal>
 
