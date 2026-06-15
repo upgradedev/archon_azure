@@ -124,9 +124,9 @@ The Validator passed all four consistency checks. The expense breakdown chart sh
 
 The executive summary is written by the Narrator agent.
 
-Notice the last line: Sources: I-A-S 1 and I-A-S 19.
+Notice the Sources line at the bottom of the executive summary — every regulatory document cited there was retrieved, not invented.
 
-That is not a language model generating plausible financial commentary. That is retrieval-augmented generation. The Narrator agent retrieved the relevant accounting standard from the knowledge index, grounded its analysis against it, and cited the source. Every claim in this summary is backed by a document. Foundry I-Q makes that possible.
+That is not a language model generating plausible financial commentary. That is retrieval-augmented generation. The Narrator agent queried the Azure AI Search knowledge index, retrieved the relevant standard, grounded its analysis against it, and cited the source. Every claim in this summary is backed by a document. Foundry I-Q makes that possible.
 
 ---
 
@@ -166,7 +166,7 @@ Microsoft Agents League, AI Skills Fest 2026. Reasoning Agents and Enterprise Ag
 
 - [ ] `docs/presentation.html` open in Chrome, fullscreen (F11), Slide 1 active
 - [ ] Second tab: Azure Static Web App — period 2026-01, dashboard visible
-- [ ] Executive summary visible with "Sources: IAS 1 · IAS 19" (scroll to confirm before recording)
+- [ ] Executive summary visible with a "Sources:" citation line at the bottom (scroll to confirm before recording)
 - [ ] Teams: Archon Financial Intelligence agent open, ready to type
 - [ ] Backend health confirmed: `/health` endpoint returns 200
 - [ ] 1920×1080, browser zoom 100%

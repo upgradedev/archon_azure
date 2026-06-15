@@ -61,9 +61,9 @@ The Expenses tile reflects the true employer cost from the payroll register — 
 
 The Validator passed all four consistency checks. The expense breakdown chart shows where the money actually went. Everything is cross-referenced, reconciled, and accurate.
 
-The executive summary is written by the Narrator agent. Notice the last line: Sources: I-A-S 1 and I-A-S 19.
+The executive summary is written by the Narrator agent. Notice the Sources line at the bottom — every regulatory document cited there was retrieved, not invented.
 
-That is not a language model generating plausible financial commentary. That is retrieval-augmented generation. The Narrator agent retrieved the relevant accounting standard from the knowledge index, grounded its analysis against it, and cited the source. Every claim in this summary is backed by a document. Foundry I-Q makes that possible.
+That is not a language model generating plausible financial commentary. That is retrieval-augmented generation. The Narrator agent queried the Azure AI Search knowledge index, retrieved the relevant standard, grounded its analysis against it, and cited the source. Every claim in this summary is backed by a document. Foundry I-Q makes that possible.
 
 
 Archon also lives inside Microsoft Teams as a declarative Copilot agent.
