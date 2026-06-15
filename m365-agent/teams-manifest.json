@@ -27,7 +27,7 @@
     "declarativeAgents": [
       {
         "id": "ArchonFinancialIntelligence",
-        "file": "manifest.json"
+        "file": "declarative-agent.json"
       }
     ]
   },
