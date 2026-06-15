@@ -32,7 +32,7 @@ const DOC_TYPE_OPTIONS: { value: DocType; label: string }[] = [
   { value: 'payroll_register', label: 'Payroll Register' },
   { value: 'payslip',          label: 'Payslip' },
   { value: 'payroll',          label: 'Payroll' },
-  { value: 'bank_confirmation',label: 'Bank Confirmation' },
+  { value: 'bank_confirmation',label: 'Bank Statement' },
   { value: 'account_statement',label: 'Account Statement' },
   { value: 'unknown',          label: 'Unknown' },
 ]

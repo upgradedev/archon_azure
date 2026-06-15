@@ -247,10 +247,10 @@ export default function DashboardPage() {
   // Definitions shown on tile info icon hover
   const TILE_TOOLTIPS: Record<string, string> = {
     Revenue: 'Net revenue ex-VAT from sales invoices issued by the company. VAT is excluded — it is collected on behalf of the tax authority.',
-    Expenses: 'All outgoings: purchase invoices + employer payroll cost from the payroll register (includes IKA/EFKA contributions, not just the bank transfer net).',
+    Expenses: 'All outgoings: purchase invoices + true employer payroll cost (gross salary plus employer social contributions — not just the net bank transfer).',
     'Net Profit': 'Revenue (ex-VAT) minus total expenses. Positive = profitable period; negative = loss-making.',
     'Net Margin': 'Net Profit as a percentage of Revenue (ex-VAT). For service companies without inventory, this equals the gross margin.',
-    'Cash Net': 'Estimated net operating cash: sales receipts minus bank payroll transfers and purchase invoices. Upload bank confirmation documents for actual cash figures.',
+    'Cash Net': 'Estimated net operating cash: sales receipts minus payroll transfers and purchase invoices. Upload bank statement documents for actual cash figures.',
     Invoices: 'Total financial documents processed: sales invoices + purchase invoices + expense receipts.',
   }
 
@@ -267,7 +267,7 @@ export default function DashboardPage() {
   const TILE_EMPTY_TEXT: Record<string, string> = {
     Revenue:     'No sales invoices found. Set your company name and tax ID in Settings (⚙) so the classifier can identify your sales documents.',
     'Net Margin':'No sales invoices found. Set your company name and tax ID in Settings (⚙).',
-    'Cash Net':  'No bank confirmation documents uploaded. Cash Net is estimated from revenue minus expenses when no bank docs are present.',
+    'Cash Net':  'No bank statement documents uploaded. Cash Net is estimated from revenue minus expenses when no bank docs are present.',
   }
 
   // Fetch documents for all selected periods when a tile is active
@@ -290,7 +290,12 @@ export default function DashboardPage() {
     { title: 'Type', dataIndex: 'doc_type', key: 'doc_type',
       render: (v: string) => {
         const color: Record<string, string> = { sales: 'green', invoice: 'orange', expense: 'red', payroll: 'purple', payroll_register: 'purple', payslip: 'purple', bank_confirmation: 'blue', unknown: 'default' }
-        return <Tag color={color[v] ?? 'default'} style={{ fontSize: 10 }}>{v}</Tag>
+        const label: Record<string, string> = {
+          sales: 'Sales Invoice', invoice: 'Purchase Invoice', expense: 'Expense',
+          payroll: 'Payroll', payroll_register: 'Payroll Register', payslip: 'Payslip',
+          bank_confirmation: 'Bank Statement', account_statement: 'Account Statement', unknown: 'Unknown',
+        }
+        return <Tag color={color[v] ?? 'default'} style={{ fontSize: 10 }}>{label[v] ?? v}</Tag>
       }},
     { title: 'Invoice #', dataIndex: 'invoice_number', key: 'invoice_number',
       render: (v: string | null) => v ?? <Text type="secondary" style={{ fontSize: 11 }}>—</Text> },
