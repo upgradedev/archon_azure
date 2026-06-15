@@ -224,15 +224,15 @@
   .fr-title { font-size:13px; font-weight:600; color:var(--purple); margin-bottom:3px; }
   .fr-desc  { font-size:12px; color:var(--muted); line-height:1.5; }
 
-  /* ── SLIDE 5: Closing ──────────────────────────────────────────── */
-  #s5 { text-align:center; }
-  #s5 .logo-sm {
+  /* ── SLIDE 7: Closing ──────────────────────────────────────────── */
+  #s7 { text-align:center; }
+  #s7 .logo-sm {
     font-size:54px; font-weight:900; letter-spacing:-.04em;
     background:linear-gradient(135deg,#fff 0%,var(--gold2) 55%,var(--gold) 100%);
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
     margin-bottom:6px;
   }
-  #s5 .sub-tag { font-size:15px; color:var(--muted); margin-bottom:36px; }
+  #s7 .sub-tag { font-size:15px; color:var(--muted); margin-bottom:36px; }
 
   .pillars {
     display:flex; gap:20px; justify-content:center; flex-wrap:wrap;
@@ -246,9 +246,37 @@
   .pillar .p-val  { font-size:26px; font-weight:800; line-height:1; }
   .pillar .p-lbl  { font-size:11px; color:var(--muted); margin-top:5px; }
 
-  #s5 .repo { font-size:13px; color:var(--muted); margin-top:12px; font-family:'Courier New',monospace; }
-  #s5 .repo a { color:var(--gold); text-decoration:none; }
-  #s5 .mit  { font-size:11px; color:rgba(148,163,184,.45); margin-top:6px; letter-spacing:.06em; }
+  #s7 .repo { font-size:13px; color:var(--muted); margin-top:12px; font-family:'Courier New',monospace; }
+  #s7 .repo a { color:var(--gold); text-decoration:none; }
+  #s7 .mit  { font-size:11px; color:rgba(148,163,184,.45); margin-top:6px; letter-spacing:.06em; }
+
+  /* ── Interstitial transition slides ───────────────────────────── */
+  .slide-tx { text-align:center; }
+  .tx-icon {
+    font-size:80px; margin-bottom:24px;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%,100% { transform:translateY(0); }
+    50%      { transform:translateY(-10px); }
+  }
+  .tx-label {
+    font-size:11px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--gold); margin-bottom:16px;
+  }
+  .tx-title {
+    font-size:clamp(36px,5.5vw,68px); font-weight:800; letter-spacing:-.03em; line-height:1.1;
+    margin-bottom:16px;
+  }
+  .tx-sub {
+    font-size:clamp(15px,1.8vw,20px); color:var(--muted); max-width:540px; line-height:1.6;
+  }
+  .tx-hint {
+    margin-top:40px; display:inline-flex; align-items:center; gap:8px;
+    padding:8px 18px; border-radius:99px;
+    border:1px solid var(--border); background:rgba(255,255,255,.04);
+    font-size:12px; color:var(--muted); letter-spacing:.06em;
+  }
 </style>
 </head>
 <body>
@@ -502,9 +530,37 @@
   </section>
 
   <!-- ═══════════════════════════════════════════════════
-       SLIDE 5 — Closing
+       SLIDE 5 — Live Demo transition
   ═══════════════════════════════════════════════════ -->
-  <section class="slide" id="s5">
+  <section class="slide slide-tx" id="s5">
+    <div class="tx-label">Live demonstration</div>
+    <div class="tx-icon">🖥️</div>
+    <div class="tx-title">Archon in Action</div>
+    <div class="tx-sub">
+      Upload documents, watch the 7-agent pipeline correlate them,
+      and explore the P&L dashboard with Foundry IQ-cited executive summary.
+    </div>
+    <div class="tx-hint">↓ Switching to the web app</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 6 — Teams transition
+  ═══════════════════════════════════════════════════ -->
+  <section class="slide slide-tx" id="s6">
+    <div class="tx-label">Enterprise Agent</div>
+    <div class="tx-icon">💬</div>
+    <div class="tx-title">In Microsoft Teams</div>
+    <div class="tx-sub">
+      Archon as a declarative Copilot agent — financial intelligence in natural language,
+      inside the tool your team already uses every day.
+    </div>
+    <div class="tx-hint">↓ Switching to Microsoft Teams</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 7 — Closing
+  ═══════════════════════════════════════════════════ -->
+  <section class="slide" id="s7">
     <div class="eyebrow">Microsoft Agents League · AI Skills Fest 2026</div>
     <div class="logo-sm">Archon</div>
     <div class="sub-tag">Upload. Correlate. Done.</div>
@@ -552,6 +608,8 @@
   <div class="dot" onclick="go(2)"></div>
   <div class="dot" onclick="go(3)"></div>
   <div class="dot" onclick="go(4)"></div>
+  <div class="dot" onclick="go(5)"></div>
+  <div class="dot" onclick="go(6)"></div>
 </div>
 <div id="arrows">
   <button class="arr" onclick="prev()">&#8592;</button>
