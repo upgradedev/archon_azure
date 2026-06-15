@@ -7,6 +7,10 @@ Archon (Αρχων — Greek for "ruler/chief") is an agentic financial intellig
 
 [![Pipeline Smoke Test](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml/badge.svg)](https://github.com/upgradedev/archon_azure/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Azure-0078d4?logo=microsoftazure)](https://gentle-sky-08574a603.7.azurestaticapps.net)
+[![Demo Video](https://img.shields.io/badge/Demo%20Video-YouTube-ff0000?logo=youtube)](https://youtu.be/NanSqsQMTBg)
+[![Tests](https://img.shields.io/badge/Tests-43%20pytest%20%2B%207%20Playwright-brightgreen)](jobs/extraction/tests)
+[![Judge Guide](https://img.shields.io/badge/Judge%20Guide-docs-blueviolet)](docs/JUDGE-GUIDE.md)
 
 ---
 
@@ -272,7 +276,10 @@ Archon is designed to be cloud-portable. Switch `JOB_RUNNER_BACKEND` and `AZURE_
 - **Contest:** Microsoft Agents League @ AI Skills Fest 2026
 - **Tracks:** Reasoning Agents (Microsoft Foundry) · Enterprise Agents (Microsoft 365 Copilot)
 - **Microsoft IQ:** Foundry IQ — AzureAISearchTool in NarratorAgent (Best Use of IQ Tools candidate)
-- **Live demo:** https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health
+- **Live demo:** https://gentle-sky-08574a603.7.azurestaticapps.net
+- **Demo video:** https://youtu.be/NanSqsQMTBg
+- **Backend health:** https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health
+- **Judge evidence guide:** [docs/JUDGE-GUIDE.md](docs/JUDGE-GUIDE.md)
 - **Architecture diagram:** [docs/architecture.svg](docs/architecture.svg)
 - **License:** MIT
 - **Author:** Efthymios Fousekis (tf@upgrade.net.gr)
