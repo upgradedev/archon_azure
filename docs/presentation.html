@@ -12,14 +12,13 @@
 
   :root {
     --navy:   #0B1D3E;
-    --navy2:  #0F2B5B;
-    --navy3:  #112D60;
     --gold:   #F59E0B;
     --gold2:  #FCD34D;
     --green:  #22C55E;
     --red:    #F43F5E;
     --blue:   #3B82F6;
     --purple: #A855F7;
+    --cyan:   #06B6D4;
     --text:   #E2E8F0;
     --muted:  #94A3B8;
     --border: rgba(255,255,255,0.08);
@@ -33,7 +32,7 @@
     color: var(--text);
   }
 
-  /* ── Background grid ───────────────────────────────────────────── */
+  /* ── Background ────────────────────────────────────────────────── */
   #bg {
     position: fixed; inset: 0; z-index: 0;
     background:
@@ -50,374 +49,212 @@
     background-size: 60px 60px;
     mask-image: radial-gradient(ellipse 90% 90% at 50% 50%, black 30%, transparent 100%);
   }
-
-  /* ── Slide container ───────────────────────────────────────────── */
-  #slides {
-    position: relative; z-index: 1;
-    width: 100%; height: 100%;
+  .pulse-ring {
+    position: absolute;
+    width: 600px; height: 600px; border-radius: 50%;
+    border: 1px solid rgba(245,158,11,0.07);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation: pulse 4s ease-in-out infinite;
   }
+  .pulse-ring:nth-child(2) { width: 820px; height: 820px; animation-delay: 1.4s; }
+  .pulse-ring:nth-child(3) { width: 1050px; height: 1050px; animation-delay: 2.8s; }
+  @keyframes pulse {
+    0%,100% { opacity: 0.4; transform: translate(-50%,-50%) scale(1); }
+    50%      { opacity: 0.1; transform: translate(-50%,-50%) scale(1.03); }
+  }
+
+  /* ── Slide engine ──────────────────────────────────────────────── */
+  #slides { position: relative; z-index: 1; width: 100%; height: 100%; }
 
   .slide {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    padding: 60px 80px;
-    opacity: 0;
-    transform: translateY(30px);
-    transition: opacity 0.55s cubic-bezier(0.4,0,0.2,1),
-                transform 0.55s cubic-bezier(0.4,0,0.2,1);
+    padding: 56px 80px;
+    opacity: 0; transform: translateY(28px);
+    transition: opacity 0.5s cubic-bezier(.4,0,.2,1), transform 0.5s cubic-bezier(.4,0,.2,1);
     pointer-events: none;
   }
-  .slide.active {
-    opacity: 1; transform: translateY(0);
-    pointer-events: all;
-  }
-  .slide.exit-up {
-    opacity: 0; transform: translateY(-30px);
-  }
+  .slide.active  { opacity: 1; transform: translateY(0); pointer-events: all; }
+  .slide.exit-up { opacity: 0; transform: translateY(-28px); }
 
-  /* ── Navigation ────────────────────────────────────────────────── */
-  #nav {
-    position: fixed; bottom: 32px; left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: rgba(255,255,255,0.25);
-    cursor: pointer;
-    transition: background 0.3s, transform 0.3s;
-  }
-  .dot.active {
-    background: var(--gold);
-    transform: scale(1.4);
-  }
+  /* ── Nav chrome ────────────────────────────────────────────────── */
+  #progress { position:fixed; top:0; left:0; height:2px; background:var(--gold); z-index:200; transition:width .5s ease; }
+  #counter  { position:fixed; bottom:36px; left:48px; z-index:100; font-size:12px; color:var(--muted); letter-spacing:.1em; font-feature-settings:'tnum'; }
+  #nav { position:fixed; bottom:32px; left:50%; transform:translateX(-50%); z-index:100; display:flex; gap:12px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.2); cursor:pointer; transition:background .3s,transform .3s; }
+  .dot.active { background:var(--gold); transform:scale(1.4); }
+  #arrows { position:fixed; bottom:28px; right:48px; z-index:100; display:flex; gap:8px; }
+  .arr { width:40px; height:40px; border-radius:50%; border:1px solid var(--border); background:rgba(255,255,255,.05); color:var(--text); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; backdrop-filter:blur(8px); }
+  .arr:hover { background:rgba(255,255,255,.12); }
 
-  #arrows {
-    position: fixed; bottom: 28px; right: 48px;
-    z-index: 100;
-    display: flex; gap: 8px;
-  }
-  .arr {
-    width: 40px; height: 40px; border-radius: 50%;
-    border: 1px solid var(--border);
-    background: rgba(255,255,255,0.05);
-    color: var(--text);
-    font-size: 18px;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.2s;
-    backdrop-filter: blur(8px);
-  }
-  .arr:hover { background: rgba(255,255,255,0.12); }
-
-  #counter {
-    position: fixed; bottom: 36px; left: 48px;
-    z-index: 100;
-    font-size: 12px; color: var(--muted); letter-spacing: 0.1em;
-    font-feature-settings: 'tnum';
-  }
-
-  /* ── Progress bar ──────────────────────────────────────────────── */
-  #progress {
-    position: fixed; top: 0; left: 0;
-    height: 2px; background: var(--gold);
-    z-index: 200;
-    transition: width 0.5s ease;
-  }
-
-  /* ── Common typography ─────────────────────────────────────────── */
-  .eyebrow {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.2em;
-    text-transform: uppercase; color: var(--gold);
-    margin-bottom: 16px;
-  }
-  .display {
-    font-size: clamp(42px, 6vw, 80px);
-    font-weight: 800; line-height: 1.05;
-    letter-spacing: -0.03em;
-  }
-  .headline {
-    font-size: clamp(28px, 4vw, 52px);
-    font-weight: 700; line-height: 1.15;
-    letter-spacing: -0.02em;
-  }
-  .subline {
-    font-size: clamp(15px, 1.8vw, 20px);
-    font-weight: 400; color: var(--muted);
-    line-height: 1.6;
-    max-width: 680px;
-  }
-  .badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 14px; border-radius: 99px;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
-    text-transform: uppercase; border: 1px solid;
-  }
-  .badge-blue  { color: var(--blue);   border-color: rgba(59,130,246,0.4);   background: rgba(59,130,246,0.08); }
-  .badge-purple{ color: var(--purple); border-color: rgba(168,85,247,0.4);  background: rgba(168,85,247,0.08); }
-  .badge-gold  { color: var(--gold);   border-color: rgba(245,158,11,0.4);  background: rgba(245,158,11,0.08); }
-
-  .card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px 32px;
-    backdrop-filter: blur(6px);
-  }
+  /* ── Shared tokens ─────────────────────────────────────────────── */
+  .eyebrow { font-size:11px; font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-bottom:14px; }
+  .display  { font-size:clamp(44px,6.5vw,84px); font-weight:800; line-height:1.05; letter-spacing:-.03em; }
+  .headline { font-size:clamp(28px,4vw,52px); font-weight:700; line-height:1.15; letter-spacing:-.02em; }
+  .subline  { font-size:clamp(15px,1.7vw,19px); color:var(--muted); line-height:1.65; max-width:660px; }
+  .badge    { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:99px; font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; border:1px solid; }
+  .b-blue   { color:var(--blue);   border-color:rgba(59,130,246,.4);  background:rgba(59,130,246,.08); }
+  .b-purple { color:var(--purple); border-color:rgba(168,85,247,.4); background:rgba(168,85,247,.08); }
+  .b-gold   { color:var(--gold);   border-color:rgba(245,158,11,.4);  background:rgba(245,158,11,.08); }
+  .b-green  { color:var(--green);  border-color:rgba(34,197,94,.4);   background:rgba(34,197,94,.08); }
+  .card { background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:16px; padding:24px 28px; backdrop-filter:blur(6px); }
 
   /* ── SLIDE 1: Title ────────────────────────────────────────────── */
-  #s1 { text-align: center; }
+  #s1 { text-align:center; }
   #s1 .logo {
-    font-size: clamp(64px, 10vw, 120px);
-    font-weight: 900; letter-spacing: -0.05em;
-    background: linear-gradient(135deg, #fff 0%, var(--gold2) 60%, var(--gold) 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1;
-    margin-bottom: 16px;
+    font-size:clamp(68px,11vw,128px); font-weight:900; letter-spacing:-.05em; line-height:1;
+    background:linear-gradient(135deg,#fff 0%,var(--gold2) 55%,var(--gold) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:14px;
   }
-  #s1 .tagline {
-    font-size: clamp(16px, 2.2vw, 24px);
-    font-weight: 300; color: var(--muted);
-    letter-spacing: 0.04em;
-    margin-bottom: 40px;
-  }
-  #s1 .badges { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-  #s1 .track-line {
-    margin-top: 48px;
-    font-size: 12px; color: rgba(148,163,184,0.6);
-    letter-spacing: 0.08em;
-  }
-  .pulse-ring {
-    position: absolute;
-    width: 600px; height: 600px;
-    border-radius: 50%;
-    border: 1px solid rgba(245,158,11,0.08);
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    animation: pulse 4s ease-in-out infinite;
-  }
-  .pulse-ring:nth-child(2) { width: 800px; height: 800px; animation-delay: 1.3s; }
-  .pulse-ring:nth-child(3) { width: 1000px; height: 1000px; animation-delay: 2.6s; }
-  @keyframes pulse {
-    0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
-    50%       { opacity: 0.1; transform: translate(-50%, -50%) scale(1.04); }
-  }
+  #s1 .tagline { font-size:clamp(16px,2.2vw,24px); font-weight:300; color:var(--muted); letter-spacing:.04em; margin-bottom:36px; }
+  #s1 .badges  { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  #s1 .sub     { margin-top:44px; font-size:11px; color:rgba(148,163,184,.5); letter-spacing:.1em; text-transform:uppercase; }
 
   /* ── SLIDE 2: The Problem ──────────────────────────────────────── */
-  #s2 { align-items: flex-start; max-width: 1100px; margin: 0 auto; width: 100%; }
-  .doc-stream-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    width: 100%;
-    margin-top: 32px;
+  #s2 { align-items:flex-start; max-width:1100px; margin:0 auto; width:100%; }
+
+  .doc-grid {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+    width:100%; margin-top:28px;
   }
   .doc-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 18px;
-    position: relative;
-    overflow: hidden;
+    background:rgba(255,255,255,.04); border:1px solid var(--border);
+    border-radius:14px; padding:20px 16px; position:relative; overflow:hidden;
   }
-  .doc-card::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  }
-  .doc-card.bank::before   { background: var(--blue); }
-  .doc-card.reg::before    { background: var(--gold); }
-  .doc-card.slip::before   { background: var(--green); }
-  .doc-card.tax::before    { background: var(--purple); }
-  .doc-card .doc-icon { font-size: 28px; margin-bottom: 10px; }
-  .doc-card .doc-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 6px; }
-  .doc-card .doc-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-  .doc-card .doc-amount { font-size: 18px; font-weight: 700; font-feature-settings: 'tnum'; }
-  .doc-card .doc-desc { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
-  .doc-card.bank .doc-amount   { color: var(--blue); }
-  .doc-card.reg .doc-amount    { color: var(--gold); }
-  .doc-card.slip .doc-amount   { color: var(--green); }
-  .doc-card.tax .doc-amount    { color: var(--purple); }
+  .doc-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .doc-card.c1::before { background:var(--blue); }
+  .doc-card.c2::before { background:var(--gold); }
+  .doc-card.c3::before { background:var(--green); }
+  .doc-card.c4::before { background:var(--purple); }
+  .doc-card .icon  { font-size:26px; margin-bottom:10px; }
+  .doc-card .dtype { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin-bottom:5px; }
+  .doc-card .dtitle{ font-size:14px; font-weight:600; margin-bottom:8px; }
+  .doc-card .ddesc { font-size:12px; color:var(--muted); line-height:1.5; }
+  .doc-card .dtag  { display:inline-block; margin-top:10px; padding:3px 10px; border-radius:99px; font-size:10px; font-weight:600; }
+  .doc-card.c1 .dtag { background:rgba(59,130,246,.15); color:var(--blue); }
+  .doc-card.c2 .dtag { background:rgba(245,158,11,.15); color:var(--gold); }
+  .doc-card.c3 .dtag { background:rgba(34,197,94,.15);  color:var(--green); }
+  .doc-card.c4 .dtag { background:rgba(168,85,247,.15); color:var(--purple); }
 
-  .gap-callout {
-    display: flex; align-items: center; gap: 24px;
-    margin-top: 28px;
-    padding: 18px 24px;
-    background: rgba(244,63,94,0.08);
-    border: 1px solid rgba(244,63,94,0.25);
-    border-radius: 12px;
-    width: 100%;
+  .truth-bar {
+    display:flex; align-items:center; gap:20px; margin-top:22px;
+    padding:16px 22px;
+    background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:12px;
+    width:100%;
   }
-  .gap-callout .gap-num {
-    font-size: 36px; font-weight: 800; color: var(--red);
-    font-feature-settings: 'tnum'; white-space: nowrap;
-  }
-  .gap-callout .gap-label {
-    font-size: 13px; color: var(--muted); line-height: 1.5;
-  }
-  .gap-callout .gap-label strong { color: var(--text); }
+  .truth-icon { font-size:28px; flex-shrink:0; }
+  .truth-text .tt-title { font-size:14px; font-weight:600; margin-bottom:4px; }
+  .truth-text .tt-body  { font-size:13px; color:var(--muted); line-height:1.5; }
 
-  /* ── SLIDE 3: Payroll Gap ──────────────────────────────────────── */
-  #s3 { max-width: 1100px; margin: 0 auto; width: 100%; }
-  .gap-split {
-    display: grid;
-    grid-template-columns: 1fr 48px 1fr;
-    align-items: center;
-    gap: 0;
-    width: 100%;
-    margin-top: 32px;
-  }
-  .gap-side {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px 28px;
-  }
-  .gap-side.left  { border-color: rgba(59,130,246,0.3); }
-  .gap-side.right { border-color: rgba(34,197,94,0.3);  background: rgba(34,197,94,0.04); }
-  .gap-side .side-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 8px; }
-  .gap-side.left .side-label  { color: var(--blue); }
-  .gap-side.right .side-label { color: var(--green); }
-  .gap-side .side-amount {
-    font-size: clamp(32px, 4vw, 52px);
-    font-weight: 800; letter-spacing: -0.03em;
-    font-feature-settings: 'tnum';
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-  .gap-side.left .side-amount  { color: var(--blue); }
-  .gap-side.right .side-amount { color: var(--green); }
-  .gap-side .side-caption { font-size: 13px; color: var(--muted); line-height: 1.4; }
-  .gap-arrow {
-    display: flex; align-items: center; justify-content: center;
-    font-size: 24px; color: var(--muted);
-  }
-  .breakdown-list { list-style: none; margin-top: 20px; }
-  .breakdown-list li {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-  }
-  .breakdown-list li:last-child { border-bottom: none; font-weight: 700; font-size: 14px; }
-  .breakdown-list .item-label { color: var(--muted); }
-  .breakdown-list .item-amount { font-feature-settings: 'tnum'; color: var(--text); }
-  .breakdown-list li.total .item-amount { color: var(--green); }
+  /* ── SLIDE 3: The Ease ─────────────────────────────────────────── */
+  #s3 { max-width:1100px; margin:0 auto; width:100%; align-items:flex-start; }
 
-  .efka-pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    margin-top: 10px; padding: 5px 12px;
-    background: rgba(245,158,11,0.1);
-    border: 1px solid rgba(245,158,11,0.3);
-    border-radius: 99px;
-    font-size: 11px; color: var(--gold);
-    font-weight: 600; letter-spacing: 0.06em;
+  .ease-flow {
+    display:grid; grid-template-columns:1fr 40px 1fr 40px 1fr; align-items:center;
+    gap:0; width:100%; margin-top:32px;
   }
+  .ease-box {
+    background:rgba(255,255,255,.04); border:1px solid var(--border);
+    border-radius:16px; padding:28px 22px; text-align:center;
+  }
+  .ease-box .e-icon { font-size:36px; margin-bottom:12px; }
+  .ease-box .e-label{ font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.14em; color:var(--muted); margin-bottom:8px; }
+  .ease-box .e-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+  .ease-box .e-desc  { font-size:12px; color:var(--muted); line-height:1.5; }
+  .ease-arrow { text-align:center; font-size:22px; color:var(--gold); }
 
-  .gap-badge {
-    position: absolute; top: -14px; right: 20px;
-    background: var(--red); color: #fff;
-    font-size: 11px; font-weight: 700;
-    padding: 3px 10px; border-radius: 99px;
-    letter-spacing: 0.06em;
+  .ease-result {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+    width:100%; margin-top:20px;
   }
+  .er-card {
+    background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:12px;
+    padding:18px 20px; display:flex; align-items:flex-start; gap:12px;
+  }
+  .er-card .er-icon { font-size:22px; flex-shrink:0; margin-top:1px; }
+  .er-card .er-title{ font-size:13px; font-weight:600; margin-bottom:4px; }
+  .er-card .er-desc { font-size:12px; color:var(--muted); line-height:1.4; }
 
   /* ── SLIDE 4: Architecture ─────────────────────────────────────── */
-  #s4 { max-width: 1100px; margin: 0 auto; width: 100%; align-items: flex-start; }
-  .arch-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-    width: 100%;
-    margin-top: 28px;
-  }
-  .arch-phase { }
-  .phase-header {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .phase-num {
-    width: 24px; height: 24px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700;
-  }
-  .phase-num.p1 { background: rgba(59,130,246,0.2); color: var(--blue); border: 1px solid rgba(59,130,246,0.4); }
-  .phase-num.p2 { background: rgba(245,158,11,0.2); color: var(--gold); border: 1px solid rgba(245,158,11,0.4); }
-  .phase-num.p3 { background: rgba(168,85,247,0.2); color: var(--purple); border: 1px solid rgba(168,85,247,0.4); }
-  .phase-title { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-  .agent-item {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-  .agent-item:last-child { border-bottom: none; }
-  .agent-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    margin-top: 6px; flex-shrink: 0;
-  }
-  .p1 .agent-dot { background: var(--blue); }
-  .p2-dot { background: var(--gold); }
-  .p3-dot { background: var(--purple); }
-  .agent-name { font-size: 13px; font-weight: 600; }
-  .agent-desc { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  #s4 { max-width:1100px; margin:0 auto; width:100%; align-items:flex-start; }
 
-  .foundry-callout {
-    grid-column: 1 / -1;
-    display: flex; align-items: center; gap: 20px;
-    padding: 16px 20px;
-    background: rgba(168,85,247,0.06);
-    border: 1px solid rgba(168,85,247,0.25);
-    border-radius: 12px;
-    margin-top: 4px;
+  .arch-grid {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+    width:100%; margin-top:24px;
   }
-  .foundry-icon { font-size: 28px; }
-  .foundry-text { }
-  .foundry-text .ft-title { font-size: 13px; font-weight: 600; color: var(--purple); }
-  .foundry-text .ft-desc { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+  .arch-col { }
+  .col-header {
+    display:flex; align-items:center; gap:10px;
+    padding-bottom:10px; margin-bottom:10px;
+    border-bottom:1px solid var(--border);
+  }
+  .col-num {
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700;
+  }
+  .n1 { background:rgba(59,130,246,.2); color:var(--blue); border:1px solid rgba(59,130,246,.4); }
+  .n2 { background:rgba(245,158,11,.2); color:var(--gold); border:1px solid rgba(245,158,11,.4); }
+  .n3 { background:rgba(168,85,247,.2); color:var(--purple); border:1px solid rgba(168,85,247,.4); }
+  .col-title { font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+
+  .ag-item {
+    display:flex; gap:10px; padding:9px 0;
+    border-bottom:1px solid rgba(255,255,255,.03);
+  }
+  .ag-item:last-child { border-bottom:none; }
+  .ag-dot { width:6px; height:6px; border-radius:50%; margin-top:6px; flex-shrink:0; }
+  .d-blue   { background:var(--blue); }
+  .d-gold   { background:var(--gold); }
+  .d-purple { background:var(--purple); }
+  .d-green  { background:var(--green); }
+  .ag-name  { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .ag-desc  { font-size:11px; color:var(--muted); line-height:1.4; }
+
+  .foundry-row {
+    grid-column:1/-1;
+    display:flex; align-items:center; gap:18px;
+    padding:14px 20px;
+    background:rgba(168,85,247,.06); border:1px solid rgba(168,85,247,.22); border-radius:12px;
+  }
+  .fr-icon { font-size:26px; }
+  .fr-title { font-size:13px; font-weight:600; color:var(--purple); margin-bottom:3px; }
+  .fr-desc  { font-size:12px; color:var(--muted); line-height:1.5; }
 
   /* ── SLIDE 5: Closing ──────────────────────────────────────────── */
-  #s5 { text-align: center; }
+  #s5 { text-align:center; }
   #s5 .logo-sm {
-    font-size: 48px; font-weight: 900; letter-spacing: -0.04em;
-    background: linear-gradient(135deg, #fff 0%, var(--gold2) 60%, var(--gold) 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 8px;
+    font-size:54px; font-weight:900; letter-spacing:-.04em;
+    background:linear-gradient(135deg,#fff 0%,var(--gold2) 55%,var(--gold) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:6px;
   }
-  #s5 .metrics-row {
-    display: flex; gap: 32px; justify-content: center;
-    margin: 32px 0;
-    flex-wrap: wrap;
+  #s5 .sub-tag { font-size:15px; color:var(--muted); margin-bottom:36px; }
+
+  .pillars {
+    display:flex; gap:20px; justify-content:center; flex-wrap:wrap;
+    margin-bottom:32px;
   }
-  .metric-box {
-    text-align: center;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 28px;
-    min-width: 140px;
+  .pillar {
+    background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:14px;
+    padding:20px 28px; min-width:150px;
   }
-  .metric-box .m-val {
-    font-size: 28px; font-weight: 800;
-    font-feature-settings: 'tnum';
-    line-height: 1;
-  }
-  .metric-box .m-label { font-size: 11px; color: var(--muted); margin-top: 6px; }
-  #s5 .repo-line {
-    font-size: 13px; color: var(--muted); margin-top: 24px;
-    font-family: 'Courier New', monospace;
-  }
-  #s5 .repo-line a { color: var(--gold); text-decoration: none; }
-  #s5 .license-line { font-size: 11px; color: rgba(148,163,184,0.5); margin-top: 8px; letter-spacing: 0.06em; }
+  .pillar .p-icon { font-size:28px; margin-bottom:8px; }
+  .pillar .p-val  { font-size:26px; font-weight:800; line-height:1; }
+  .pillar .p-lbl  { font-size:11px; color:var(--muted); margin-top:5px; }
+
+  #s5 .repo { font-size:13px; color:var(--muted); margin-top:12px; font-family:'Courier New',monospace; }
+  #s5 .repo a { color:var(--gold); text-decoration:none; }
+  #s5 .mit  { font-size:11px; color:rgba(148,163,184,.45); margin-top:6px; letter-spacing:.06em; }
 </style>
 </head>
 <body>
 
 <div id="progress"></div>
+
 <div id="bg">
   <div class="pulse-ring"></div>
   <div class="pulse-ring"></div>
@@ -426,232 +263,237 @@
 
 <div id="slides">
 
-  <!-- ── SLIDE 1: Title ─────────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 1 — Title
+  ═══════════════════════════════════════════════════ -->
   <section class="slide active" id="s1">
     <div class="eyebrow">Microsoft Agents League · AI Skills Fest 2026</div>
     <div class="logo">Archon</div>
     <div class="tagline">Agentic Financial Intelligence for SMBs</div>
     <div class="badges">
-      <span class="badge badge-blue">⚙ Reasoning Agents</span>
-      <span class="badge badge-purple">🏢 Enterprise Agents</span>
-      <span class="badge badge-gold">⚡ Built on Azure</span>
+      <span class="badge b-blue">⚙ Reasoning Agents</span>
+      <span class="badge b-purple">🏢 Enterprise Agents</span>
+      <span class="badge b-gold">⚡ Built on Azure</span>
     </div>
-    <div class="track-line">7-AGENT PIPELINE · FOUNDRY IQ · M365 COPILOT · AZURE AI SEARCH</div>
+    <div class="sub">7-AGENT PIPELINE · FOUNDRY IQ · M365 COPILOT · AZURE AI SEARCH</div>
   </section>
 
-  <!-- ── SLIDE 2: The Problem ───────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 2 — The Problem
+  ═══════════════════════════════════════════════════ -->
   <section class="slide" id="s2">
     <div class="eyebrow">The Problem</div>
-    <div class="headline">One payroll event.<br />Four documents. Zero reconciliation.</div>
-    <p class="subline" style="margin-top:12px;">
-      Greek SMBs manage payroll across four separate institutional payment streams.
-      No single document captures the full employer cost — and most owners record only what they see in the bank.
-    </p>
-    <div class="doc-stream-grid">
-      <div class="doc-card bank">
-        <div class="doc-icon">🏦</div>
-        <div class="doc-label">Bank Confirmation</div>
-        <div class="doc-title">Net salary transfer</div>
-        <div class="doc-amount">€3,994.74</div>
-        <div class="doc-desc">Direct to employee accounts. What most SMBs record as "payroll cost."</div>
+    <div class="headline">Your financial truth<br />is scattered across documents.</div>
+
+    <div class="doc-grid">
+      <div class="doc-card c1">
+        <div class="icon">🏦</div>
+        <div class="dtype">Bank Statement</div>
+        <div class="dtitle">Net cash movements</div>
+        <div class="ddesc">Records what arrived and left — net amounts after deductions. Incomplete without context.</div>
+        <span class="dtag">Partial view</span>
       </div>
-      <div class="doc-card reg">
-        <div class="doc-icon">📋</div>
-        <div class="doc-label">Payroll Register (ΑΠΔ)</div>
-        <div class="doc-title">EFKA employer cost</div>
-        <div class="doc-amount">€6,930.00</div>
-        <div class="doc-desc">Authoritative record filed with EFKA. Includes employer social contributions.</div>
+      <div class="doc-card c2">
+        <div class="icon">📋</div>
+        <div class="dtype">Payroll Register</div>
+        <div class="dtitle">True employer cost</div>
+        <div class="ddesc">Full gross cost including employer social contributions — the number that matters for P&L.</div>
+        <span class="dtag">Authoritative cost</span>
       </div>
-      <div class="doc-card slip">
-        <div class="doc-icon">🧾</div>
-        <div class="doc-label">Individual Payslips</div>
-        <div class="doc-title">Per-employee breakdown</div>
-        <div class="doc-amount">× 4 employees</div>
-        <div class="doc-desc">Gross pay, employee EFKA deduction, income tax withholding per person.</div>
+      <div class="doc-card c3">
+        <div class="icon">🧾</div>
+        <div class="dtype">Invoices & Receipts</div>
+        <div class="dtitle">Revenue & expenses</div>
+        <div class="ddesc">Sales income gross and net. Supplier costs. Each document a fragment of the full picture.</div>
+        <span class="dtag">Revenue signal</span>
       </div>
-      <div class="doc-card tax">
-        <div class="doc-icon">🏛</div>
-        <div class="doc-label">Tax Authority (AADE)</div>
-        <div class="doc-title">Withheld income tax</div>
-        <div class="doc-amount">Separate transfer</div>
-        <div class="doc-desc">Filed with AADE (Greek tax authority). Invisible in payroll register net figures.</div>
+      <div class="doc-card c4">
+        <div class="icon">📄</div>
+        <div class="dtype">Individual Payslips</div>
+        <div class="dtitle">Per-employee allocation</div>
+        <div class="ddesc">Gross pay, deductions, tax withholding per person — cross-checks the register total.</div>
+        <span class="dtag">Validation source</span>
       </div>
     </div>
-    <div class="gap-callout">
-      <div class="gap-num">−73.5%</div>
-      <div class="gap-label">
-        <strong>The reconciliation gap:</strong> recording only the bank transfer understates true employer cost by 73.5%.
-        Archon's Event Linker agent fuses all four streams into one accurate financial event — automatically.
+
+    <div class="truth-bar">
+      <div class="truth-icon">⚠️</div>
+      <div class="truth-text">
+        <div class="tt-title">No single document tells the whole story</div>
+        <div class="tt-body">
+          The same payroll event appears as different amounts in the bank statement, the payroll register, and the individual payslips.
+          Correlating them manually takes hours — and one missed document means a non-compliant P&L.
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ── SLIDE 3: Payroll Gap deep-dive ────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 3 — The Ease
+  ═══════════════════════════════════════════════════ -->
   <section class="slide" id="s3">
-    <div class="eyebrow">The EFKA Gap — January 2026</div>
-    <div class="headline">What the bank says vs.<br />what Greek law requires</div>
+    <div class="eyebrow">The Solution</div>
+    <div class="headline">Upload. Correlate. Done.</div>
+    <p class="subline" style="margin-top:10px;">
+      Archon's agents read every document, find the connections, and produce a single accurate financial truth —
+      in seconds, not hours.
+    </p>
 
-    <div class="gap-split" style="margin-top:28px;">
-      <div class="gap-side left card">
-        <div class="side-label">Bank statement shows</div>
-        <div class="side-amount">€3,994.74</div>
-        <div class="side-caption">Net salary transferred to 4 employee accounts.<br/>This is what most SMBs enter as "payroll expense."</div>
-        <ul class="breakdown-list" style="margin-top:16px;">
-          <li>
-            <span class="item-label">Net employee salaries</span>
-            <span class="item-amount">€3,994.74</span>
-          </li>
-          <li>
-            <span class="item-label" style="color:var(--red);">EFKA employer share</span>
-            <span class="item-amount" style="color:var(--red);">not visible ✗</span>
-          </li>
-          <li>
-            <span class="item-label" style="color:var(--red);">AADE tax withholding</span>
-            <span class="item-amount" style="color:var(--red);">not visible ✗</span>
-          </li>
-        </ul>
+    <div class="ease-flow" style="margin-top:28px;">
+      <div class="ease-box">
+        <div class="e-icon">📁</div>
+        <div class="e-label">Step 1</div>
+        <div class="e-title">Upload</div>
+        <div class="e-desc">Drop invoices, bank statements, payroll documents. Any format. Greek or English.</div>
       </div>
-
-      <div class="gap-arrow">→</div>
-
-      <div class="gap-side right card" style="position:relative;">
-        <span class="gap-badge">IAS 19 COMPLIANT</span>
-        <div class="side-label">Payroll Register (ΑΠΔ) reveals</div>
-        <div class="side-amount">€6,930.00</div>
-        <div class="side-caption">True employer cost. Required by IAS 19 para. 10 for P&L reporting.</div>
-        <ul class="breakdown-list" style="margin-top:16px;">
-          <li>
-            <span class="item-label">Net employee salaries</span>
-            <span class="item-amount">€3,994.74</span>
-          </li>
-          <li>
-            <span class="item-label">EFKA employer contributions (~22%)</span>
-            <span class="item-amount" style="color:var(--gold);">+€2,007.69</span>
-          </li>
-          <li>
-            <span class="item-label">Income tax withheld (AADE)</span>
-            <span class="item-amount" style="color:var(--gold);">+€927.57</span>
-          </li>
-          <li class="total">
-            <span class="item-label" style="color:var(--text);">True employer cost</span>
-            <span class="item-amount">€6,930.00</span>
-          </li>
-        </ul>
-        <div class="efka-pill">⚡ ΕΦΚΑ · Law 4387/2016</div>
+      <div class="ease-arrow">→</div>
+      <div class="ease-box" style="border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.04);">
+        <div class="e-icon">🤖</div>
+        <div class="e-label">Step 2</div>
+        <div class="e-title">Agents Correlate</div>
+        <div class="e-desc">7 specialised agents classify, link, validate, and reconcile across all document types.</div>
+      </div>
+      <div class="ease-arrow">→</div>
+      <div class="ease-box" style="border-color:rgba(34,197,94,.25); background:rgba(34,197,94,.04);">
+        <div class="e-icon">📊</div>
+        <div class="e-label">Step 3</div>
+        <div class="e-title">Accurate P&L</div>
+        <div class="e-desc">Revenue, expenses, cash flow, and a cited executive summary — boardroom-ready.</div>
       </div>
     </div>
 
-    <p style="font-size:12px; color:var(--muted); margin-top:16px; text-align:center;">
-      <strong style="color:var(--gold);">EFKA</strong> (ΕΦΚΑ — Ενιαίος Φορέας Κοινωνικής Ασφάλισης) is Greece's unified social insurance fund, successor to IKA.
-      Employer mandatory contribution: ~22% of gross salary — paid directly to EFKA as a separate institutional transfer, never appearing in the bank payroll line.
-    </p>
+    <div class="ease-result">
+      <div class="er-card">
+        <div class="er-icon">🔗</div>
+        <div>
+          <div class="er-title">Cross-document correlation</div>
+          <div class="er-desc">Same event, different documents, different amounts — the Event Linker fuses them into one accurate record.</div>
+        </div>
+      </div>
+      <div class="er-card">
+        <div class="er-icon">✅</div>
+        <div>
+          <div class="er-title">Automated validation</div>
+          <div class="er-desc">4 consistency rules run across every document set. Discrepancies surface immediately, not at year-end.</div>
+        </div>
+      </div>
+      <div class="er-card">
+        <div class="er-icon">📝</div>
+        <div>
+          <div class="er-title">Cited executive summary</div>
+          <div class="er-desc">Every claim in the P&L narrative is grounded in accounting standards — not generated from thin air.</div>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <!-- ── SLIDE 4: Architecture ──────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 4 — Architecture
+  ═══════════════════════════════════════════════════ -->
   <section class="slide" id="s4">
     <div class="eyebrow">Architecture — Built on Microsoft Azure</div>
     <div class="headline">7 specialised agents.<br />One grounded financial truth.</div>
 
     <div class="arch-grid">
 
-      <div class="arch-phase">
-        <div class="phase-header">
-          <span class="phase-num p1">1</span>
-          <span class="phase-title">Extract</span>
+      <div class="arch-col">
+        <div class="col-header">
+          <span class="col-num n1">1</span>
+          <span class="col-title">Extract</span>
         </div>
-        <div class="agent-item">
-          <div class="agent-dot" style="background:var(--blue);"></div>
+        <div class="ag-item">
+          <div class="ag-dot d-blue"></div>
           <div>
-            <div class="agent-name">Extractor</div>
-            <div class="agent-desc">GPT-4o vision reads scanned PDFs — invoices, registers, slips — in Greek or English</div>
+            <div class="ag-name">Extractor</div>
+            <div class="ag-desc">GPT-4o vision reads scanned PDFs — invoices, registers, payslips — in any language</div>
           </div>
         </div>
-        <div class="agent-item">
-          <div class="agent-dot" style="background:var(--blue);"></div>
+        <div class="ag-item">
+          <div class="ag-dot d-blue"></div>
           <div>
-            <div class="agent-name">Classifier</div>
-            <div class="agent-desc">Rule-based: distinguishes payroll_register / bank_confirmation / payslip</div>
+            <div class="ag-name">Classifier</div>
+            <div class="ag-desc">Identifies document subtype: payroll register, bank confirmation, individual payslip</div>
           </div>
         </div>
-        <div class="agent-item">
-          <div class="agent-dot" style="background:var(--blue);"></div>
+        <div class="ag-item">
+          <div class="ag-dot d-blue"></div>
           <div>
-            <div class="agent-name">Event Linker</div>
-            <div class="agent-desc">Fuses all payroll documents for the same company + period into one reconciled event</div>
+            <div class="ag-name">Event Linker</div>
+            <div class="ag-desc">Groups documents describing the same payroll event — same company, same period — into one reconciled record</div>
           </div>
         </div>
-        <div class="agent-item">
-          <div class="agent-dot" style="background:var(--blue);"></div>
+        <div class="ag-item">
+          <div class="ag-dot d-blue"></div>
           <div>
-            <div class="agent-name">Validator</div>
-            <div class="agent-desc">4 cross-document rules: ±2% bank vs slips, EFKA ratio, payment date, headcount</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="arch-phase">
-        <div class="phase-header">
-          <span class="phase-num p2">2</span>
-          <span class="phase-title">Analyse</span>
-        </div>
-        <div class="agent-item">
-          <div class="agent-dot p2-dot"></div>
-          <div>
-            <div class="agent-name">P&L Agent</div>
-            <div class="agent-desc">Revenue ex-VAT · expenses at employer cost · net margin</div>
-          </div>
-        </div>
-        <div class="agent-item">
-          <div class="agent-dot p2-dot"></div>
-          <div>
-            <div class="agent-name">Cash Flow Agent</div>
-            <div class="agent-desc">Bank confirmation transfers → operating / investing / financing</div>
-          </div>
-        </div>
-        <div class="agent-item">
-          <div class="agent-dot p2-dot"></div>
-          <div>
-            <div class="agent-name">Employee Agent</div>
-            <div class="agent-desc">Per-employee salary analytics from payslips + payroll events</div>
+            <div class="ag-name">Validator</div>
+            <div class="ag-desc">4 cross-document consistency checks: bank vs payslips, cost ratio, payment date, employee count</div>
           </div>
         </div>
       </div>
 
-      <div class="arch-phase">
-        <div class="phase-header">
-          <span class="phase-num p3">3</span>
-          <span class="phase-title">Deliver</span>
+      <div class="arch-col">
+        <div class="col-header">
+          <span class="col-num n2">2</span>
+          <span class="col-title">Analyse</span>
         </div>
-        <div class="agent-item">
-          <div class="agent-dot p3-dot"></div>
+        <div class="ag-item">
+          <div class="ag-dot d-gold"></div>
           <div>
-            <div class="agent-name">Narrator (Foundry IQ)</div>
-            <div class="agent-desc">Azure AI Foundry agent + AzureAISearchTool → cited CFO summary</div>
+            <div class="ag-name">P&L Agent</div>
+            <div class="ag-desc">Revenue ex-VAT · expenses at true employer cost · net margin calculation</div>
           </div>
         </div>
-        <div class="agent-item">
-          <div class="agent-dot" style="background:var(--green);"></div>
+        <div class="ag-item">
+          <div class="ag-dot d-gold"></div>
           <div>
-            <div class="agent-name">React Dashboard</div>
-            <div class="agent-desc">P&L tiles, drill-down, expense breakdown, payroll reconciliation panel</div>
+            <div class="ag-name">Cash Flow Agent</div>
+            <div class="ag-desc">Actual bank transfers → operating / investing / financing classification</div>
           </div>
         </div>
-        <div class="agent-item">
-          <div class="agent-dot" style="background:var(--green);"></div>
+        <div class="ag-item">
+          <div class="ag-dot d-gold"></div>
           <div>
-            <div class="agent-name">M365 Copilot Agent</div>
-            <div class="agent-desc">Declarative agent in Teams — chat interface over the full pipeline</div>
+            <div class="ag-name">Employee Agent</div>
+            <div class="ag-desc">Payroll cost reconciliation: net transfer vs true employer cost — the difference surfaces automatically</div>
           </div>
         </div>
       </div>
 
-      <div class="foundry-callout">
-        <div class="foundry-icon">🔮</div>
-        <div class="foundry-text">
-          <div class="ft-title">Foundry IQ Grounding — Azure AI Search knowledge index</div>
-          <div class="ft-desc">
-            10 documents indexed: IFRS IAS 1 &amp; IAS 19 · Greek VAT Law N.2859/2000 · Law 4387/2016 (EFKA) · IKA/EFKA contribution tables · AADE filing rules
-            — every executive summary cites the exact regulatory source.
+      <div class="arch-col">
+        <div class="col-header">
+          <span class="col-num n3">3</span>
+          <span class="col-title">Deliver</span>
+        </div>
+        <div class="ag-item">
+          <div class="ag-dot d-purple"></div>
+          <div>
+            <div class="ag-name">Narrator — Foundry IQ</div>
+            <div class="ag-desc">Azure AI Foundry agent + AI Search grounding → CFO-level summary with cited accounting standards</div>
+          </div>
+        </div>
+        <div class="ag-item">
+          <div class="ag-dot d-green"></div>
+          <div>
+            <div class="ag-name">React Dashboard</div>
+            <div class="ag-desc">P&L tiles, expense breakdown, cash flow, payroll reconciliation panel</div>
+          </div>
+        </div>
+        <div class="ag-item">
+          <div class="ag-dot d-green"></div>
+          <div>
+            <div class="ag-name">M365 Copilot Agent</div>
+            <div class="ag-desc">Declarative agent in Microsoft Teams — financial intelligence in natural language, where the team already works</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="foundry-row">
+        <div class="fr-icon">🔮</div>
+        <div>
+          <div class="fr-title">Foundry IQ — Grounding, not generation</div>
+          <div class="fr-desc">
+            The Narrator agent retrieves relevant accounting standards and local regulations via Azure AI Search before writing a single word.
+            Every financial claim in the executive summary carries a cited source — eliminating hallucination at the point that matters most.
           </div>
         </div>
       </div>
@@ -659,47 +501,50 @@
     </div>
   </section>
 
-  <!-- ── SLIDE 5: Closing ───────────────────────────────────── -->
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 5 — Closing
+  ═══════════════════════════════════════════════════ -->
   <section class="slide" id="s5">
     <div class="eyebrow">Microsoft Agents League · AI Skills Fest 2026</div>
     <div class="logo-sm">Archon</div>
-    <p style="font-size:15px; color:var(--muted); margin-top:4px; max-width:600px; line-height:1.6;">
-      Agentic P&L intelligence for Greek SMBs — multi-agent, grounded, and cited.
-    </p>
+    <div class="sub-tag">Upload. Correlate. Done.</div>
 
-    <div class="metrics-row">
-      <div class="metric-box">
-        <div class="m-val" style="color:var(--green);">7</div>
-        <div class="m-label">Specialised Agents</div>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="p-icon">⚙️</div>
+        <div class="p-val" style="color:var(--blue);">7</div>
+        <div class="p-lbl">Specialised Agents</div>
       </div>
-      <div class="metric-box">
-        <div class="m-val" style="color:var(--gold);">73.5%</div>
-        <div class="m-label">Payroll Gap Detected</div>
+      <div class="pillar">
+        <div class="p-icon">🔗</div>
+        <div class="p-val" style="color:var(--gold);">4</div>
+        <div class="p-lbl">Document Types Correlated</div>
       </div>
-      <div class="metric-box">
-        <div class="m-val" style="color:var(--purple);">10</div>
-        <div class="m-label">Regulatory Docs Indexed</div>
+      <div class="pillar">
+        <div class="p-icon">🔮</div>
+        <div class="p-val" style="color:var(--purple);">IQ</div>
+        <div class="p-lbl">Foundry-Grounded Summaries</div>
       </div>
-      <div class="metric-box">
-        <div class="m-val" style="color:var(--blue);">2</div>
-        <div class="m-label">Tracks Submitted</div>
+      <div class="pillar">
+        <div class="p-icon">🏢</div>
+        <div class="p-val" style="color:var(--green);">M365</div>
+        <div class="p-lbl">Copilot Integration</div>
       </div>
     </div>
 
-    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
-      <span class="badge badge-blue">⚙ Reasoning Agents</span>
-      <span class="badge badge-purple">🏢 Enterprise Agents</span>
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <span class="badge b-blue">⚙ Reasoning Agents</span>
+      <span class="badge b-purple">🏢 Enterprise Agents</span>
     </div>
 
-    <div class="repo-line" style="margin-top:28px;">
+    <div class="repo">
       github.com / upgradedev / <a href="https://github.com/upgradedev/archon_azure">archon_azure</a>
     </div>
-    <div class="license-line">OPEN SOURCE · MIT LICENCE</div>
+    <div class="mit">OPEN SOURCE · MIT LICENCE</div>
   </section>
 
 </div>
 
-<!-- Navigation -->
 <div id="counter">1 / 5</div>
 <div id="nav">
   <div class="dot active" onclick="go(0)"></div>
@@ -709,15 +554,15 @@
   <div class="dot" onclick="go(4)"></div>
 </div>
 <div id="arrows">
-  <button class="arr" onclick="prev()" title="Previous">&#8592;</button>
-  <button class="arr" onclick="next()" title="Next">&#8594;</button>
+  <button class="arr" onclick="prev()">&#8592;</button>
+  <button class="arr" onclick="next()">&#8594;</button>
 </div>
 
 <script>
   const slides = document.querySelectorAll('.slide');
   const dots   = document.querySelectorAll('.dot');
   const prog   = document.getElementById('progress');
-  const counter= document.getElementById('counter');
+  const ctr    = document.getElementById('counter');
   let cur = 0, locked = false;
 
   function go(n) {
@@ -732,20 +577,16 @@
       slides[cur].classList.add('active');
       dots[cur].classList.add('active');
       prog.style.width = ((cur + 1) / slides.length * 100) + '%';
-      counter.textContent = (cur + 1) + ' / ' + slides.length;
+      ctr.textContent  = (cur + 1) + ' / ' + slides.length;
       locked = false;
-    }, 320);
+    }, 310);
   }
-
   function next() { go(cur + 1); }
   function prev() { go(cur - 1); }
-
   document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); next(); }
-    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')  { e.preventDefault(); prev(); }
+    if (['ArrowRight','ArrowDown',' '].includes(e.key)) { e.preventDefault(); next(); }
+    if (['ArrowLeft', 'ArrowUp'].includes(e.key))       { e.preventDefault(); prev(); }
   });
-
-  // init progress
   prog.style.width = (1 / slides.length * 100) + '%';
 </script>
 </body>
