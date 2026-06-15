@@ -1,0 +1,44 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/plugin/v2.1/schema.json",
+  "schema_version": "v2.1",
+  "namespace": "archon",
+  "name_for_human": "Archon Financial Intelligence",
+  "description_for_human": "Agentic P&L intelligence for SMBs. Retrieve financial reports, trigger analysis, and get regulation-cited executive summaries.",
+  "description_for_model": "Use this plugin to call the Archon Financial Intelligence API. You can trigger the 7-agent analysis pipeline for a reporting period, retrieve cached financial reports, submit document extraction jobs, and check job status. Always present financial figures in EUR. Highlight the payroll cost gap between bank net transfers and true employer cost (IKA/EFKA contributions). Cite applicable IFRS standards or Greek tax regulations when relevant.",
+  "functions": [
+    {
+      "name": "analyzeFinancials",
+      "description": "Triggers the 7-agent analysis pipeline for the specified period and returns a full FinancialReport with P&L, cash flow, expense breakdown, payroll cost reconciliation, and a Foundry IQ-grounded executive summary."
+    },
+    {
+      "name": "getReport",
+      "description": "Returns a previously computed FinancialReport from cache without re-running the pipeline. Use analyzeFinancials first if no report exists yet."
+    },
+    {
+      "name": "submitExtractionJob",
+      "description": "Submits a document extraction job that processes uploaded raw documents through the 4-agent pipeline: Extractor, Classifier, EventLinker, Validator."
+    },
+    {
+      "name": "getJobStatus",
+      "description": "Returns the current status of an extraction job (pending, running, completed, failed) along with progress percentage and error details if failed."
+    }
+  ],
+  "runtimes": [
+    {
+      "type": "OpenApi",
+      "auth": {
+        "type": "None"
+      },
+      "spec": {
+        "url": "openapi.json",
+        "progress_style": "ShowUsageWithInputAndOutput"
+      },
+      "run_for_functions": [
+        "analyzeFinancials",
+        "getReport",
+        "submitExtractionJob",
+        "getJobStatus"
+      ]
+    }
+  ]
+}

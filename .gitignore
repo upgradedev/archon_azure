@@ -17,6 +17,7 @@ sample-data/generated/
 *.tfstate.backup
 .env.local
 *.zip
+!m365-agent/archon-agent.zip
 *.webm
 *.mp4
 *.mp3
