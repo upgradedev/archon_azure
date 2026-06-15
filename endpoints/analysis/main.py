@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     azure_storage_connection_string: str = ""
     azure_storage_container: str = "archon"
     database_url: str = ""
-    company_name: str = ""      # e.g. "Upgrade SA" — used by classifier to identify sales docs
-    company_tax_id: str = ""    # ΑΦΜ / VAT ID digits only — strongest sales classification signal
+    company_name: str = "ARCHON DEMO LTD"   # used by classifier to identify sales docs
+    company_tax_id: str = "800000001"        # VAT ID digits only — strongest sales classification signal
 
     class Config:
         env_file = ".env"
