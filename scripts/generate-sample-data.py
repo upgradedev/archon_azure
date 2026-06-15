@@ -268,7 +268,7 @@ def gen_statement():
 
 
 if __name__ == "__main__":
-    print(f"Generating synthetic sample documents → {OUT}/")
+    print(f"Generating synthetic sample documents -> {OUT}/")
     gen_attiki()
     gen_anthropic()
     gen_aws()
