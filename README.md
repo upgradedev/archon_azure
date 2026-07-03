@@ -3,7 +3,7 @@
 > **Microsoft Agents League Contest @ AI Skills Fest 2026**
 > Tracks: **Reasoning Agents** + **Enterprise Agents** · Microsoft IQ: **Foundry IQ**
 
-Archon (Αρχων — Greek for "ruler/chief") is an agentic financial intelligence platform for small and medium businesses. It ingests raw business documents — Greek or English, scanned or digital — and produces a boardroom-ready P&L dashboard with regulation-cited executive summaries powered by Azure OpenAI and **Foundry IQ**.
+Archon (Αρχων — "ruler/chief") is an agentic financial intelligence platform for small and medium businesses. It ingests raw business documents — in multiple languages, scanned or digital — and produces a boardroom-ready P&L dashboard with regulation-cited executive summaries powered by Azure OpenAI and **Foundry IQ**.
 
 [![Pipeline Smoke Test](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml/badge.svg)](https://github.com/upgradedev/archon_azure/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -20,14 +20,14 @@ A single payroll period cannot be understood from any one document. Each documen
 
 | Document stream | What it shows | What it misses |
 |---|---|---|
-| Bank confirmation | Net cash transferred to employee accounts | Employer EFKA/social-insurance contribution (separate institutional transfer) |
+| Bank confirmation | Net cash transferred to employee accounts | Employer social-insurance contribution (separate institutional transfer) |
 | Payroll register | Full gross wages + employer contribution (true cost) | Actual cash flow timing |
 | Individual payslips | Per-employee gross/net/deduction breakdown | Aggregate employer cost |
 | Tax authority records | Income-tax withholdings remitted | Salary structure |
 
-These are **four separate payment streams** to four different counterparties. They cannot be matched by date, amount, or counterparty — they require correlation by company, period, and Greek regulatory logic (EFKA contributions under Law 4387/2016, income-tax withholdings under Greek IRS rules).
+These are **four separate payment streams** to four different counterparties. They cannot be matched by date, amount, or counterparty — they require correlation by company, period, and regulatory logic (social-security contributions under payroll regulations, income-tax withholdings under tax-authority rules).
 
-Without correlating all streams, an SMB reading only the bank statement systematically **understates payroll expense** and overstates profit — because the bank shows only the employee net transfer, not the employer's contribution to EFKA or the tax authority.
+Without correlating all streams, an SMB reading only the bank statement systematically **understates payroll expense** and overstates profit — because the bank shows only the employee net transfer, not the employer's social-security contribution or the tax-authority remittance.
 
 Archon's **EventLinkerAgent** performs this correlation automatically, fusing all four streams into a single accurate payroll event per period.
 
@@ -37,22 +37,20 @@ Archon's **EventLinkerAgent** performs this correlation automatically, fusing al
 
 Archon's **NarratorAgent** uses **Foundry IQ** via the **azure-ai-projects SDK** — the native Azure AI Foundry agent runtime — to ground its executive summaries in cited, authoritative sources:
 
-```
-NarratorAgent (azure-ai-projects AIProjectClient)
-    │
-    ├── Azure AI Foundry agent runtime
-    │       ├── AzureAISearchTool → archon-search connection
-    │       │       └── archon-knowledge index
-    │       │               ├── IFRS / IAS standards summaries
-    │       │               ├── Greek IKA/EFKA payroll regulations (Law 4387/2016)
-    │       │               ├── VAT law (N.2859/2000, reverse charge Art.44)
-    │       │               └── Financial reporting best practices
-    │       └── GPT-4o deployment
-    │
-    └── Grounded, regulation-cited executive summary
+```mermaid
+flowchart TD
+    N["NarratorAgent (azure-ai-projects AIProjectClient)"] --> R["Azure AI Foundry agent runtime"]
+    R --> T["AzureAISearchTool - archon-search connection"]
+    T --> IDX["archon-knowledge index"]
+    IDX --> K1["IFRS / IAS standards summaries"]
+    IDX --> K2["Payroll & social-security regulations"]
+    IDX --> K3["VAT / indirect-tax rules"]
+    IDX --> K4["Financial reporting best practices"]
+    R --> G["GPT-4o deployment"]
+    N --> S["Grounded, regulation-cited executive summary"]
 ```
 
-**Why Foundry IQ matters here:** Financial AI without grounding hallucinates regulatory figures. When the NarratorAgent states "employer costs include IKA contributions at 26.67% of gross wages per Greek EFKA regulations," that claim is retrieved from the knowledge index and cited — not generated from training data alone.
+**Why Foundry IQ matters here:** Financial AI without grounding hallucinates regulatory figures. When the NarratorAgent states "employer costs include social-security contributions at 26.67% of gross wages per payroll regulations," that claim is retrieved from the knowledge index and cited — not generated from training data alone.
 
 The narrator uses the **azure-ai-projects** SDK (`AIProjectClient.from_connection_string` → `create_agent` → `AzureAISearchTool`) — the actual Foundry agent framework, not just Azure OpenAI with `extra_body`. A graceful fallback path (Azure OpenAI On Your Data) covers local dev and CI.
 
@@ -62,19 +60,16 @@ The narrator uses the **azure-ai-projects** SDK (`AIProjectClient.from_connectio
 
 Archon is also submitted in the **Enterprise Agents** track. The `m365-agent/` directory contains a **Microsoft 365 Copilot declarative agent** that brings Archon into Teams and Copilot Chat:
 
-```
-Microsoft 365 Copilot Chat / Teams
-        │ declarative agent (m365-agent/manifest.json)
-        │ OpenAPI plugin   (m365-agent/openapi.json)
-        ▼
-Archon FastAPI Backend (Azure Container Apps)
-  /api/analyze  →  7-agent pipeline + Foundry IQ summary
-  /api/reports  →  cached financial reports
+```mermaid
+flowchart TD
+    C["Microsoft 365 Copilot Chat / Teams"] -->|"declarative agent (manifest.json) + OpenAPI plugin (openapi.json)"| B["Archon FastAPI Backend (Azure Container Apps)"]
+    B --> A["/api/analyze - 7-agent pipeline + Foundry IQ summary"]
+    B --> RP["/api/reports - cached financial reports"]
 ```
 
 **Conversation starters available in Teams:**
 - *"What was our P&L for January 2026?"*
-- *"What is our true payroll cost including IKA contributions?"*
+- *"What is our true payroll cost including social-security contributions?"*
 - *"Give me an executive summary of our financial health"*
 
 See [`m365-agent/README.md`](m365-agent/README.md) for deployment steps.
@@ -84,46 +79,6 @@ See [`m365-agent/README.md`](m365-agent/README.md) for deployment steps.
 ## Architecture
 
 ![Archon Architecture on Microsoft Azure](./README-architecture.png)
-
-```
-Azure Static Web Apps (global CDN)
-  React Frontend (Ant Design · Recharts · TypeScript)
-        │ REST / JSON
-Azure Container Apps (CPU)
-  FastAPI Orchestration Backend
-  /upload · /jobs · /analyze · /reports
-        │                       │
-        │ trigger job            │ call endpoint
-┌───────▼──────────┐   ┌────────▼──────────────────────────────────────────────┐
-│ Azure Container   │   │ Azure Container Apps (always-on)                      │
-│ Apps Job          │   │ ──────────────────────────────────────────────────── │
-│ (extraction)      │   │ 1. ClassifierAgent   — re-classify doc types          │
-│ ──────────────    │   │ 2. PnLAgent          — employer_cost from register    │
-│ 1. Extractor      │   │ 3. CashFlowAgent     — real cash from bank docs       │
-│ 2. Classifier     │   │ 4. EmployeeAgent     — per-employee salary analytics  │
-│ 3. EventLinker    │   │ 5. ValidatorAgent    — cross-doc consistency checks   │
-│ 4. Validator      │   │ 6. ReconciliationAgent — vendor statement diffs       │
-└───────┬──────────┘   │ 7. NarratorAgent     — Foundry IQ grounded summary    │
-        │              └────────┬──────────────────────────────────────────────┘
-        │ write                 │ read / write
-┌───────▼───────────────────────▼────────────────────┐
-│        Azure Blob Storage                           │
-│  raw-docs/  ·  extracted/  ·  reports/              │
-└──────────────────────┬──────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│  Azure Database for PostgreSQL Flexible Server      │
-│  documents · employees · payroll_events             │
-│  employee_payroll · validation_results              │
-└──────────────────────┬──────────────────────────────┘
-              ┌────────┴────────┐
-              │                 │
-┌─────────────▼──────┐  ┌───────▼──────────────────────┐
-│  Azure OpenAI       │  │  Azure AI Search              │
-│  GPT-4o (vision)    │  │  Foundry IQ knowledge index   │
-│  GPT-4o (analysis)  │  │  IFRS · IKA regs · VAT law   │
-└────────────────────┘  └──────────────────────────────┘
-```
 
 ---
 
@@ -136,7 +91,7 @@ Azure Container Apps (CPU)
 | **Extractor** | Auto-detect file type; call GPT-4o vision or text; produce ExtractedDocument per file |
 | **ClassifierAgent** | Rule-based doc_type refinement — no LLM; distinguishes payroll_register / bank_confirmation / payslip |
 | **EventLinkerAgent** | Group payroll docs by company + period; produce PayrollEvent linking all three subtypes |
-| **ValidatorAgent** | Cross-document consistency (R1 bank≈payslips ±2%, R2 IKA ratio, R3 payment date, R4 employee count) |
+| **ValidatorAgent** | Cross-document consistency (R1 bank≈payslips ±2%, R2 social-security ratio, R3 payment date, R4 employee count) |
 
 ### Analysis Endpoint (Azure Container Apps — always-on)
 
@@ -169,7 +124,7 @@ docker compose up --build
 
 Open http://localhost:3000
 
-Generate synthetic Greek sample documents:
+Generate synthetic sample documents:
 ```bash
 pip install reportlab
 python scripts/generate-sample-data.py
@@ -227,8 +182,8 @@ psql "$DATABASE_URL" -f backend/db/schema.sql
 
 Upload accounting standards documents to Azure AI Search index `archon-knowledge`:
 - IFRS/IAS standards summaries (PDFs or chunked text)
-- Greek IKA/EFKA contribution rate tables
-- Greek VAT law (N.2859/2000) reverse charge provisions
+- Payroll & social-security contribution rate tables
+- VAT / indirect-tax reverse-charge provisions
 
 Use the Azure AI Search portal or the REST API to upload and index these documents. The NarratorAgent queries this index automatically when `AZURE_AI_SEARCH_ENDPOINT` and `AZURE_AI_SEARCH_KEY` are set.
 
