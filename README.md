@@ -83,6 +83,8 @@ See [`m365-agent/README.md`](m365-agent/README.md) for deployment steps.
 
 ## Architecture
 
+![Archon Architecture on Microsoft Azure](./README-architecture.png)
+
 ```
 Azure Static Web Apps (global CDN)
   React Frontend (Ant Design · Recharts · TypeScript)
