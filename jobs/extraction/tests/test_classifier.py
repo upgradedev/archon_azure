@@ -96,6 +96,13 @@ class TestAccentInsensitivity:
         result = run([doc])
         assert result[0].doc_type == DocType.PAYROLL_REGISTER
 
+    def test_accented_final_sigma_bank_name_matches(self):
+        # "Πειραιώς" ends in final sigma (ς); the keyword list stores "πειραιωσ"
+        # with a medial sigma, so classification depends on Unicode case folding.
+        doc = _doc(DocType.UNKNOWN, vendor="Πειραιώς")
+        result = run([doc])
+        assert result[0].doc_type == DocType.BANK_CONFIRMATION
+
 
 class TestNoKeywordMatch:
     def test_unknown_with_no_keywords_stays_unknown(self):

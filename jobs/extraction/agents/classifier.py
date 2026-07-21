@@ -11,6 +11,8 @@ payroll event from different perspectives:
   - payslip            : individual employee pay slip (net per person)
 """
 
+import unicodedata
+
 from models.document import ExtractedDocument, DocType
 
 
@@ -45,28 +47,31 @@ _PAYROLL_GENERIC_KW = {"payroll", "μισθοδοσια", "salary", "μισθο�
 _SALES_KW = {"τιμολογιο πωλησης", "sales invoice", "πωληση"}
 
 
+def _norm(s: str) -> str:
+    """Normalize text and keywords with locale-independent Unicode rules."""
+    # Remove combining marks without transliterating away non-ASCII letters.
+    # casefold() also maps the Greek final sigma to the normal sigma so both
+    # input text and keyword literals compare consistently.
+    decomposed = unicodedata.normalize("NFD", s.casefold())
+    return "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+
+
 def _search_text(doc: ExtractedDocument) -> str:
     """Return a single normalised string covering all text fields."""
-    import unicodedata
-
-    def _norm(s: str) -> str:
-        # strip accents so Greek keyword matching is accent-insensitive
-        return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode().lower()
-
     parts = [doc.notes or "", doc.vendor_name or "", doc.raw_text_excerpt or ""]
     return _norm(" ".join(parts))
 
 
 def _infer_type(doc: ExtractedDocument) -> DocType:
     text = _search_text(doc)
-    if any(k in text for k in _BANK_CONFIRMATION_KW):
+    if any(_norm(k) in text for k in _BANK_CONFIRMATION_KW):
         return DocType.BANK_CONFIRMATION
-    if any(k in text for k in _PAYROLL_REGISTER_KW):
+    if any(_norm(k) in text for k in _PAYROLL_REGISTER_KW):
         return DocType.PAYROLL_REGISTER
-    if any(k in text for k in _PAYSLIP_KW):
+    if any(_norm(k) in text for k in _PAYSLIP_KW):
         return DocType.PAYSLIP
-    if any(k in text for k in _PAYROLL_GENERIC_KW):
+    if any(_norm(k) in text for k in _PAYROLL_GENERIC_KW):
         return DocType.PAYROLL   # keep generic when subtype indeterminate
-    if any(k in text for k in _SALES_KW):
+    if any(_norm(k) in text for k in _SALES_KW):
         return DocType.SALES
     return DocType.UNKNOWN

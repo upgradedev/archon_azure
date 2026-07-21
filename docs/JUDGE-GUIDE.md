@@ -14,7 +14,7 @@ Tracks: **Reasoning Agents** · **Enterprise Agents**
 | Backend Health | https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health |
 | MCP Endpoint | https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/mcp |
 | Analysis Health | https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health |
-| CI (passing) | https://github.com/upgradedev/archon_azure/actions |
+| CI workflow | https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml |
 
 ---
 
@@ -24,24 +24,24 @@ Tracks: **Reasoning Agents** · **Enterprise Agents**
 
 | Criterion | How Archon satisfies it | Evidence |
 |---|---|---|
-| Multi-agent system with clear role separation | 11 single-responsibility agents across two pipelines (4 extraction + 7 analysis) | [`jobs/extraction/agents/`](../jobs/extraction/agents/) · [`endpoints/analysis/agents/`](../endpoints/analysis/agents/) |
-| Azure AI Foundry agent framework | NarratorAgent creates ephemeral Foundry agent per request via `azure-ai-projects` SDK (b10) | [`endpoints/analysis/agents/narrator.py`](../endpoints/analysis/agents/narrator.py) |
-| Multi-step reasoning | EventLinkerAgent fuses bank confirmation + payroll register + payslips; 4 cross-document validation rules (R1–R4); NarratorAgent synthesises cited summary | [`agents/event_linker.py`](../jobs/extraction/agents/event_linker.py) · [`agents/validator.py`](../jobs/extraction/agents/validator.py) |
-| Microsoft IQ — Foundry IQ | AzureAISearchTool on `archon-knowledge` index (10 regulatory docs: IFRS IAS 1/19, Law 4387/2016, Greek VAT N.2859/2000, IKA/EFKA tables) | [`agents/narrator.py`](../endpoints/analysis/agents/narrator.py) |
+| Staged system with clear role separation | 4 extraction stages and 7 analysis stages. Most are deterministic Python functions rather than autonomous agents. | [`jobs/extraction/agents/`](../jobs/extraction/agents/) · [`endpoints/analysis/agents/`](../endpoints/analysis/agents/) |
+| Microsoft Foundry agent framework | Optional NarratorAgent uses the Threads/Messages/Runs implementation of Microsoft Foundry Agent Service (classic) via `azure-ai-projects==1.0.0b10` | [`endpoints/analysis/agents/narrator.py`](../endpoints/analysis/agents/narrator.py) |
+| Multi-step processing | Extraction-time EventLinker groups bank confirmation + payroll register + payslips; four deterministic checks run over those groups. Analysis later reclassifies and validates documents independently. | [`agents/event_linker.py`](../jobs/extraction/agents/event_linker.py) · [`agents/validator.py`](../jobs/extraction/agents/validator.py) |
+| Optional Search grounding | `AzureAISearchTool` can query `archon-knowledge` on the configured classic Agent Service path. The fallback is not necessarily grounded. | [`agents/narrator.py`](../endpoints/analysis/agents/narrator.py) |
 | External tools / MCP | `/mcp` endpoint — 3 tools: `list_periods`, `get_financial_report`, `analyze_period` | See MCP evidence below |
-| Code quality & tests | 43 pytest unit tests (no mocks, no network) + 7 Playwright E2E | [`jobs/extraction/tests/`](../jobs/extraction/tests/) · [`frontend/e2e/`](../frontend/e2e/) |
+| Code quality & tests | Two deterministic Python unit-test suites — 36 extraction tests and 8 analysis tests — run as separately named pytest steps in the CI workflow on every push. Seven authenticated live-dashboard Playwright scenarios are authored but are separate from the smoke workflow. | [`jobs/extraction/tests/`](../jobs/extraction/tests/) · [`frontend/e2e/`](../frontend/e2e/) |
 
 ### Enterprise Agents Track
 
 | Criterion | How Archon satisfies it | Evidence |
 |---|---|---|
 | M365 Copilot declarative agent (required) | Sideloadable zip with `manifest.json`, OpenAPI plugin, Adaptive Card responses | [`m365-agent/`](../m365-agent/) |
-| Microsoft IQ integration (required) | Foundry IQ — NarratorAgent retrieves regulation passages and cites them inline in the executive summary | [`agents/narrator.py`](../endpoints/analysis/agents/narrator.py) |
-| Real business value | The 1.735× payroll cost gap (bank net €3,994.74 vs employer cost €6,930.00) is detected automatically — a financially material error SMBs make every month | Live demo → period `2026-01` |
+| Microsoft IQ integration (required) | The configured classic Agent Service path can attach Azure AI Search before generating the optional summary | [`agents/narrator.py`](../endpoints/analysis/agents/narrator.py) |
+| Business scenario | Seeded synthetic records illustrate the difference between a €3,994.74 bank transfer and a €6,930.00 employer-cost field. This is a demonstration, not evidence of live extraction accuracy or customer impact. | Demo seed → period `2026-01` |
 
 ---
 
-## 7-Agent Analysis Pipeline (Step-by-Step)
+## Seven-stage analysis pipeline (step by step)
 
 ```
 POST /analyze {"period": "2026-01"}
@@ -50,16 +50,16 @@ POST /analyze {"period": "2026-01"}
 1. ClassifierAgent      — re-classifies doc_type for analysis context (rule-based, no LLM)
     │
     ▼
-2. PnLAgent             — builds P&L using employer_cost_total (not bank net); Revenue €8,500 · Expenses €7,588
+2. PnLAgent             — builds a P&L-style view; seeded payroll registers can supply employer_cost_total
     │
     ▼
-3. CashFlowAgent        — cash flow from bank_confirmation transfers only (real cash, not accrual)
+3. CashFlowAgent        — cash-flow proxy: all bank confirmations are outflows; sales are assumed collected; invoices/expenses are assumed paid
     │
     ▼
 4. EmployeeAgent        — per-employee salary analytics from payslips + payroll register
     │
     ▼
-5. ValidatorAgent       — 4 cross-document consistency rules:
+5. ValidatorAgent       — period-level re-run of 4 consistency checks over documents:
                           R1 bank ≈ sum(payslips) ±2%
                           R2 employer_cost / net_pay in [1.25, 1.45] (IKA/EFKA range)
                           R3 payment dates align
@@ -69,7 +69,7 @@ POST /analyze {"period": "2026-01"}
 6. ReconciliationAgent  — vendor statement vs uploaded invoices diff (missing doc detection)
     │
     ▼
-7. NarratorAgent        — Foundry ephemeral agent + AzureAISearchTool → cited executive summary
+7. NarratorAgent        — optional downstream summary. It attempts Microsoft Foundry Agent Service (classic) when a project connection is configured; otherwise it uses Azure OpenAI
 ```
 
 ---
@@ -91,17 +91,15 @@ GET https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.i
 |---|---|
 | `list_periods` | Lists all periods with extracted documents in Blob Storage |
 | `get_financial_report` | Returns the full cached FinancialReport for a period |
-| `analyze_period` | Triggers the 7-agent pipeline and returns the live report |
+| `analyze_period` | Triggers the staged analysis pipeline and returns the live report |
 
 ---
 
-## Foundry IQ — Citation Evidence
+## Optional narration and grounding evidence
 
-The NarratorAgent calls `AzureAISearchTool` on the `archon-knowledge` index before writing the executive summary. The index contains 10 regulatory documents. A live citation from the executive summary for period `2026-01`:
+When `AZURE_AI_PROJECT_CONNECTION_STRING` is set, NarratorAgent creates an ephemeral classic Agent Service agent and attaches `AzureAISearchTool`. It then creates a Thread, Message and Run and reads the resulting Messages. This code path can return citation annotations from retrieved content.
 
-> *"Per IAS 19 paragraph 10, the employee benefit expense must include employer EFKA contributions under Law 4387/2016, which arrive at the insurance institution as a separate transfer and are not visible in the bank confirmation alone."*
-
-Every claim in the executive summary links to a retrieved source passage. The `Sources:` line appears inline at the end of the summary body.
+When that connection string is absent, the service uses Azure OpenAI Chat Completions. Search grounding on the fallback path requires separate Search endpoint and key settings. CI does not prove the credentialed Agent Service, Search or live extraction paths, so grounded or cited output must be verified separately in the target Azure environment.
 
 To verify live:
 ```bash
@@ -111,14 +109,14 @@ curl -s https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainera
 
 ---
 
-## Live Demo Walkthrough (3 minutes)
+## Seeded Demo Walkthrough (3 minutes)
 
 1. Open https://gentle-sky-08574a603.7.azurestaticapps.net
 2. Period `2026-01` auto-selects (or choose from dropdown)
-3. **Metric tiles** render: Revenue €8,500 · Expenses €7,588 · Net Profit €912
-4. **P&L chart** shows payroll as the dominant expense category at €6,930 (employer cost — not the €3,994 bank transfer)
-5. **Validation badges**: 4 green checks — R1 bank≈payslips, R2 IKA ratio, R3 dates, R4 employee count
-6. **Executive Summary**: scroll down — citations appear as `Sources: IAS 19 · Law 4387/2016`
+3. **Metric tiles** render values computed from pre-structured synthetic records
+4. **P&L chart** shows the seeded payroll register's employer-cost field separately from the seeded bank transfer
+5. **Validation badges** display the period-level R1–R4 results; skipped checks are currently encoded as informational passes
+6. **Executive Summary** may show a generated narrative; citations depend on the configured narration path
 7. **Upload Documents**: click to open the drawer — drag PDFs, select period, click Extract & Analyze
 
 Seed fresh demo data if needed:
@@ -130,41 +128,54 @@ curl -X POST https://archon-analysis.politemeadow-da83e97d.westeurope.azureconta
 
 ## Test Coverage
 
-| Suite | Count | What is tested |
-|---|---|---|
-| `test_classifier.py` | 13 | Accent-normalised Greek keyword inference, DocType reclassification rules |
-| `test_event_linker.py` | 9 | 3-document payroll fusion, multi-company grouping, payroll gap invariant (1.734×) |
-| `test_validator.py` | 13 | R1–R4 rules (pass/fail/skip), ADR-006 Pydantic optional fields |
-| `test_cashflow_agent.py` | 8 | Core invariant: cash = bank transfer, not employer cost |
-| `dashboard.spec.ts` | 7 | Playwright E2E: metric tiles, Foundry IQ tag, period selector, upload drawer |
-| **Total** | **50** | |
+| Suite | Tests | What is tested |
+|---|---:|---|
+| `test_classifier.py` (extraction) | 14 | Greek/English keyword inference, accent/final-sigma normalization and DocType reclassification rules |
+| `test_event_linker.py` (extraction) | 9 | 3-document extraction-time linking, multi-company grouping, synthetic payroll gap invariant |
+| `test_validator.py` (extraction) | 13 | Extraction-time R1–R4 pass/fail/skip behavior and Pydantic optional fields |
+| `test_cashflow_agent.py` (analysis) | 8 | Current cash-flow proxy assumptions |
+| **Python suites** | **36 extraction + 8 analysis** | Deterministic; no live extraction, no network, no Azure credentials |
+| `dashboard.spec.ts` | 7 scenarios | Authenticated checks against the configured live dashboard; not run in the smoke workflow; not live-extraction evidence |
+
+Current pass/fail status for both Python suites is published by the [CI workflow](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml) on every push to `master`.
 
 Run locally:
 ```bash
-# Python unit tests (no network, no LLM)
-cd jobs/extraction && pytest tests/ -v
-cd endpoints/analysis && pytest tests/ -v
+# Python unit tests from repository root (no network, no LLM).
+# Run the suites as two separate pytest processes — each suite carries its own
+# top-level `models`/`agents` packages, which collide in a single process.
+PYTHONDONTWRITEBYTECODE=1 python -m pytest jobs/extraction/tests -q -p no:cacheprovider
+PYTHONDONTWRITEBYTECODE=1 python -m pytest endpoints/analysis/tests -q -p no:cacheprovider
 
-# Playwright E2E (requires live frontend)
+# Playwright UI checks (require configured live frontend and saved auth state)
 cd frontend && npx playwright test
 ```
 
+### CI evidence boundary
+
+The smoke workflow has two distinct checks:
+
+1. The workflow runs the extraction suite (36 tests) and the analysis suite (8 tests) as two separately named pytest steps.
+2. The container smoke path seeds pre-extracted synthetic JSON, sets `CI_SKIP_EXTRACTION=1`, and exercises analysis over that seed.
+
+The smoke path does not validate credentialed model extraction, Microsoft Foundry Agent Service, Azure AI Search, Microsoft 365 tenant integration, or the seven Playwright scenarios.
+
 ---
 
-## Azure Infrastructure (Deployed)
+## Azure infrastructure and deployment boundary
 
 | Service | Resource | Purpose |
 |---|---|---|
 | Azure Container Apps | `archon-backend` | FastAPI orchestration + MCP server |
-| Azure Container Apps | `archon-analysis` | 7-agent analysis pipeline |
-| Azure Container Apps Jobs | `archon-extraction` | 4-agent extraction pipeline (on-demand) |
+| Azure Container Apps | `archon-analysis` | Seven-stage analysis pipeline; six stages are deterministic functions and narration is optional |
+| Azure Container Apps Jobs | `archon-extraction` | Model-assisted extraction plus deterministic classification, linking and validation (on demand) |
 | Azure Blob Storage | `archon` container | Raw docs · extracted JSON · cached reports |
-| Azure Database for PostgreSQL | `archon-pg` | Document metadata · employee records |
-| Azure OpenAI | GPT-4o (vision + analysis) | Document extraction + analysis |
-| Azure AI Foundry | `archon-foundry` | Ephemeral agents + Foundry IQ |
-| Azure AI Search | `archon-knowledge` | 10-doc regulatory knowledge index |
+| Azure Database for PostgreSQL | `archon-pg` | Provisioned schema target; not queried by the inspected runtime path |
+| Azure OpenAI | GPT-4o (vision + optional narration fallback) | Document extraction and optional narration when no Foundry project connection is configured |
+| Microsoft Foundry | Existing hub/project referenced by Bicep | Optional classic Agent Service narration path |
+| Azure AI Search | Search service provisioned by Bicep; index/connection require separate setup | Optional narration grounding |
 | Azure Key Vault | `archon-kv` | Secrets (no hardcoded credentials) |
 | Application Insights | `archon-ai` | OpenTelemetry traces |
 | Azure Static Web Apps | `archon-frontend` | React dashboard (CDN-hosted) |
 
-All infrastructure deployed via Bicep IaC ([`infra/main.bicep`](../infra/main.bicep)) and GitHub Actions ([`.github/workflows/smoke-test.yml`](../.github/workflows/smoke-test.yml)).
+[`infra/main.bicep`](../infra/main.bicep) provisions the core storage, compute, Search service, OpenAI, PostgreSQL, Key Vault and monitoring resources. It references the Microsoft Foundry hub/project and Search connection as existing resources. The analysis identity's required project-scope Contributor assignment is documented in Bicep as manual because the deployment principal lacks `roleAssignments/write`. GitHub Actions therefore does not prove a fully self-contained Bicep deployment.

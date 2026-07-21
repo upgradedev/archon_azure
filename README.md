@@ -1,75 +1,65 @@
 # Archon — Automated Business P&L Intelligence (Azure)
 
-> **Microsoft Agents League Contest @ AI Skills Fest 2026**
-> Tracks: **Reasoning Agents** + **Enterprise Agents** · Microsoft IQ: **Foundry IQ**
+> **Built for Microsoft's Agents League hackathon at AI Skills Fest**
 
-Archon (Αρχων — Greek for "ruler/chief") is an agentic financial intelligence platform for small and medium businesses. It ingests raw business documents — Greek or English, scanned or digital — and produces a boardroom-ready P&L dashboard with regulation-cited executive summaries powered by Azure OpenAI and **Foundry IQ**.
+Archon (Αρχων — "ruler/chief") is a prototype for turning business documents into reviewable, P&L-style analysis. It combines model-assisted extraction with deterministic classification, aggregation, validation and reconciliation stages. An optional narration path can use Azure OpenAI and Microsoft Foundry Agent Service (classic).
 
-[![Pipeline Smoke Test](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml/badge.svg)](https://github.com/upgradedev/archon_azure/actions)
+[![Python Unit Tests + Seeded Analysis Smoke](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml/badge.svg?branch=master)](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Azure-0078d4?logo=microsoftazure)](https://gentle-sky-08574a603.7.azurestaticapps.net)
 [![Demo Video](https://img.shields.io/badge/Demo%20Video-YouTube-ff0000?logo=youtube)](https://youtu.be/NanSqsQMTBg)
-[![Tests](https://img.shields.io/badge/Tests-43%20pytest%20%2B%207%20Playwright-brightgreen)](jobs/extraction/tests)
+[![Python unit tests](https://img.shields.io/badge/Python%20unit%20tests-36%20extraction%20%2B%208%20analysis-blue)](docs/JUDGE-GUIDE.md#test-coverage)
+[![Playwright scenarios](https://img.shields.io/badge/Playwright-7%20authored%20live--UI%20checks-informational)](frontend/e2e/dashboard.spec.ts)
 [![Judge Guide](https://img.shields.io/badge/Judge%20Guide-docs-blueviolet)](docs/JUDGE-GUIDE.md)
 
 ---
 
-## The Core Insight — The Multi-Stream Payroll Problem
+## The Core Insight — Cost Is Not Cash
 
-A single payroll period cannot be understood from any one document. Each document type captures a different, non-overlapping slice of the truth:
+A payroll period can be represented by several records that answer different questions:
 
 | Document stream | What it shows | What it misses |
 |---|---|---|
-| Bank confirmation | Net cash transferred to employee accounts | Employer EFKA/social-insurance contribution (separate institutional transfer) |
+| Bank confirmation | Net cash transferred to employee accounts | Employer social-insurance contribution (separate institutional transfer) |
 | Payroll register | Full gross wages + employer contribution (true cost) | Actual cash flow timing |
 | Individual payslips | Per-employee gross/net/deduction breakdown | Aggregate employer cost |
-| Tax authority records | Income-tax withholdings remitted | Salary structure |
 
-These are **four separate payment streams** to four different counterparties. They cannot be matched by date, amount, or counterparty — they require correlation by company, period, and Greek regulatory logic (EFKA contributions under Law 4387/2016, income-tax withholdings under Greek IRS rules).
+The extraction job's **EventLinkerAgent** groups bank confirmations, payroll registers and payslips by company and period, then runs four consistency checks over those extraction-time groups. Completeness records the presence of those three implemented document types; it is not audited relationship-level matching, and tax-authority records are not linked. The separate analysis service does not consume those linked-event artifacts. Its current P&L deduplication is a coarser period-level prototype rule: if any payroll register is present, every bank confirmation and payslip in that period is excluded from the expense total.
 
-Without correlating all streams, an SMB reading only the bank statement systematically **understates payroll expense** and overstates profit — because the bank shows only the employee net transfer, not the employer's contribution to EFKA or the tax authority.
-
-Archon's **EventLinkerAgent** performs this correlation automatically, fusing all four streams into a single accurate payroll event per period.
+That distinction matters. A payroll register can represent employer cost while a bank confirmation represents a cash transfer. The prototype keeps those views separate, but it does not reconstruct a complete payroll or cash ledger.
 
 ---
 
-## Microsoft IQ Integration — Foundry IQ
+## Optional grounded narration
 
-Archon's **NarratorAgent** uses **Foundry IQ** via the **azure-ai-projects SDK** — the native Azure AI Foundry agent runtime — to ground its executive summaries in cited, authoritative sources:
+When configured, Archon's **NarratorAgent** uses the Threads, Messages and Runs implementation of **Microsoft Foundry Agent Service (classic)** through `azure-ai-projects==1.0.0b10`. It can attach an `AzureAISearchTool` to retrieve context before producing the downstream summary:
 
-```
-NarratorAgent (azure-ai-projects AIProjectClient)
-    │
-    ├── Azure AI Foundry agent runtime
-    │       ├── AzureAISearchTool → archon-search connection
-    │       │       └── archon-knowledge index
-    │       │               ├── IFRS / IAS standards summaries
-    │       │               ├── Greek IKA/EFKA payroll regulations (Law 4387/2016)
-    │       │               ├── VAT law (N.2859/2000, reverse charge Art.44)
-    │       │               └── Financial reporting best practices
-    │       └── GPT-4o deployment
-    │
-    └── Grounded, regulation-cited executive summary
+```mermaid
+flowchart TD
+    N["NarratorAgent (azure-ai-projects AIProjectClient)"] --> R["Microsoft Foundry Agent Service (classic)"]
+    R --> T["AzureAISearchTool - archon-search connection"]
+    T --> IDX["archon-knowledge index"]
+    IDX --> K1["IFRS / IAS standards summaries"]
+    IDX --> K2["Payroll & social-security regulations"]
+    IDX --> K3["VAT / indirect-tax rules"]
+    IDX --> K4["Financial reporting best practices"]
+    R --> G["GPT-4o deployment"]
+    N --> S["Grounded, regulation-cited executive summary"]
 ```
 
-**Why Foundry IQ matters here:** Financial AI without grounding hallucinates regulatory figures. When the NarratorAgent states "employer costs include IKA contributions at 26.67% of gross wages per Greek EFKA regulations," that claim is retrieved from the knowledge index and cited — not generated from training data alone.
-
-The narrator uses the **azure-ai-projects** SDK (`AIProjectClient.from_connection_string` → `create_agent` → `AzureAISearchTool`) — the actual Foundry agent framework, not just Azure OpenAI with `extra_body`. A graceful fallback path (Azure OpenAI On Your Data) covers local dev and CI.
+This path is optional and non-blocking. If a Foundry connection is unavailable, the code falls back to Azure OpenAI Chat Completions. That fallback is grounded only when Azure AI Search endpoint and key settings are also present; local and CI runs must not be assumed to produce grounded or cited narration.
 
 ---
 
 ## Enterprise Agents Track — Microsoft 365 Copilot Integration
 
-Archon is also submitted in the **Enterprise Agents** track. The `m365-agent/` directory contains a **Microsoft 365 Copilot declarative agent** that brings Archon into Teams and Copilot Chat:
+The `m365-agent/` directory contains a **Microsoft 365 Copilot declarative-agent package** and OpenAPI plugin as a separate integration path:
 
-```
-Microsoft 365 Copilot Chat / Teams
-        │ declarative agent (m365-agent/manifest.json)
-        │ OpenAPI plugin   (m365-agent/openapi.json)
-        ▼
-Archon FastAPI Backend (Azure Container Apps)
-  /api/analyze  →  7-agent pipeline + Foundry IQ summary
-  /api/reports  →  cached financial reports
+```mermaid
+flowchart TD
+    C["Microsoft 365 Copilot Chat / Teams"] -->|"declarative agent (manifest.json) + OpenAPI plugin (openapi.json)"| B["Archon FastAPI Backend (Azure Container Apps)"]
+    B --> A["/api/analyze - staged analysis + optional narrative"]
+    B --> RP["/api/reports - cached financial reports"]
 ```
 
 **Conversation starters available in Teams:**
@@ -85,46 +75,6 @@ See [`m365-agent/README.md`](m365-agent/README.md) for deployment steps.
 
 ![Archon Architecture on Microsoft Azure](./README-architecture.png)
 
-```
-Azure Static Web Apps (global CDN)
-  React Frontend (Ant Design · Recharts · TypeScript)
-        │ REST / JSON
-Azure Container Apps (CPU)
-  FastAPI Orchestration Backend
-  /upload · /jobs · /analyze · /reports
-        │                       │
-        │ trigger job            │ call endpoint
-┌───────▼──────────┐   ┌────────▼──────────────────────────────────────────────┐
-│ Azure Container   │   │ Azure Container Apps (always-on)                      │
-│ Apps Job          │   │ ──────────────────────────────────────────────────── │
-│ (extraction)      │   │ 1. ClassifierAgent   — re-classify doc types          │
-│ ──────────────    │   │ 2. PnLAgent          — employer_cost from register    │
-│ 1. Extractor      │   │ 3. CashFlowAgent     — real cash from bank docs       │
-│ 2. Classifier     │   │ 4. EmployeeAgent     — per-employee salary analytics  │
-│ 3. EventLinker    │   │ 5. ValidatorAgent    — cross-doc consistency checks   │
-│ 4. Validator      │   │ 6. ReconciliationAgent — vendor statement diffs       │
-└───────┬──────────┘   │ 7. NarratorAgent     — Foundry IQ grounded summary    │
-        │              └────────┬──────────────────────────────────────────────┘
-        │ write                 │ read / write
-┌───────▼───────────────────────▼────────────────────┐
-│        Azure Blob Storage                           │
-│  raw-docs/  ·  extracted/  ·  reports/              │
-└──────────────────────┬──────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────┐
-│  Azure Database for PostgreSQL Flexible Server      │
-│  documents · employees · payroll_events             │
-│  employee_payroll · validation_results              │
-└──────────────────────┬──────────────────────────────┘
-              ┌────────┴────────┐
-              │                 │
-┌─────────────▼──────┐  ┌───────▼──────────────────────┐
-│  Azure OpenAI       │  │  Azure AI Search              │
-│  GPT-4o (vision)    │  │  Foundry IQ knowledge index   │
-│  GPT-4o (analysis)  │  │  IFRS · IKA regs · VAT law   │
-└────────────────────┘  └──────────────────────────────┘
-```
-
 ---
 
 ## Agent Responsibilities
@@ -133,22 +83,31 @@ Azure Container Apps (CPU)
 
 | Agent | Responsibility |
 |---|---|
-| **Extractor** | Auto-detect file type; call GPT-4o vision or text; produce ExtractedDocument per file |
+| **Extractor** | Handle PDF, DOCX and common image formats; call GPT-4o vision or text; produce ExtractedDocument per file |
 | **ClassifierAgent** | Rule-based doc_type refinement — no LLM; distinguishes payroll_register / bank_confirmation / payslip |
 | **EventLinkerAgent** | Group payroll docs by company + period; produce PayrollEvent linking all three subtypes |
-| **ValidatorAgent** | Cross-document consistency (R1 bank≈payslips ±2%, R2 IKA ratio, R3 payment date, R4 employee count) |
+| **ValidatorAgent** | Cross-document consistency (R1 bank≈payslips ±2%, R2 social-security ratio, R3 payment date, R4 employee count) |
 
 ### Analysis Endpoint (Azure Container Apps — always-on)
 
 | Agent | Responsibility |
 |---|---|
 | **ClassifierAgent** | Re-classify for analysis context |
-| **PnLAgent** | P&L aggregation — uses employer_cost_total (not bank net) for accurate payroll cost |
-| **CashFlowAgent** | Cash flow — uses bank_confirmation transfers for real cash movements |
+| **PnLAgent** | P&L-style aggregation — uses `employer_cost_total` when present and a coarse period-level payroll deduplication rule |
+| **CashFlowAgent** | Cash-flow proxy — treats bank confirmations as outflows and assumes sales are collected and invoice/expense documents are paid |
 | **EmployeeAgent** | Per-employee salary analytics from payslips; payroll event summaries |
 | **ReconciliationAgent** | Vendor statement vs uploaded invoices — surfaces missing documents |
-| **ValidatorAgent** | Re-runs cross-document validation as a safety net across multi-batch uploads |
-| **NarratorAgent** | **Foundry IQ** — Azure OpenAI + Azure AI Search grounded executive summary |
+| **ValidatorAgent** | Re-runs period-level consistency checks over the loaded documents |
+| **NarratorAgent** | Optional downstream summary through Microsoft Foundry Agent Service (classic) or an Azure OpenAI fallback |
+
+### Current prototype boundaries
+
+- The reliable live-extraction formats are **PDF, DOCX and common image formats**. The upload route also accepts legacy `.doc`, but `python-docx` is not a reliable binary `.doc` parser; this remains a repository defect.
+- Live extraction does not populate the dedicated payroll or statement fields used by the richer analysis. Those demonstrations use pre-structured synthetic records.
+- The analysis service loads only `documents.json`. It independently reclassifies and validates documents and does not consume extraction-time `events.json` or `validation.json`, so those stored artifacts can go stale after document review.
+- The UI exposes a document review step, but it is not an enforced backend approval gate. Review fetch or save errors can continue to analysis, and report generation is not gated on an approval record.
+- Raw uploads remain in Blob Storage when extraction fails. The failure is logged, but no dedicated exception record is written.
+- PostgreSQL is provisioned and a schema is present, but the inspected application path does not query it.
 
 ---
 
@@ -169,7 +128,7 @@ docker compose up --build
 
 Open http://localhost:3000
 
-Generate synthetic Greek sample documents:
+Generate synthetic sample documents:
 ```bash
 pip install reportlab
 python scripts/generate-sample-data.py
@@ -181,16 +140,16 @@ pip install azure-storage-blob
 python scripts/upload_demo_docs.py
 ```
 
-Run end-to-end smoke test:
+Run the seeded analysis smoke test (this bypasses live extraction):
 ```bash
-bash scripts/test-pipeline.sh
+CI_SKIP_EXTRACTION=1 bash scripts/test-pipeline.sh
 ```
 
 ---
 
 ## Deploy to Azure
 
-### One-command infra provisioning (Bicep)
+### Repository-defined infrastructure (Bicep plus existing/manual dependencies)
 
 ```bash
 az group create --name archon-rg --location westeurope
@@ -200,6 +159,8 @@ az deployment group create \
   --template-file infra/main.bicep \
   --parameters postgresAdminPassword=<your-password>
 ```
+
+`infra/main.bicep` provisions the core storage, compute, search, OpenAI, PostgreSQL, Key Vault and monitoring resources. The Microsoft Foundry hub/project and Search connection are referenced as existing resources, and the analysis identity's required project-scope Contributor assignment is documented as a manual step. Deployment therefore is not fully self-contained in Bicep.
 
 ### Build and push images
 
@@ -223,14 +184,14 @@ docker push $ACR/archon-analysis:latest
 psql "$DATABASE_URL" -f backend/db/schema.sql
 ```
 
-### Seed Foundry IQ knowledge index
+### Seed the optional Azure AI Search knowledge index
 
 Upload accounting standards documents to Azure AI Search index `archon-knowledge`:
 - IFRS/IAS standards summaries (PDFs or chunked text)
-- Greek IKA/EFKA contribution rate tables
-- Greek VAT law (N.2859/2000) reverse charge provisions
+- Payroll & social-security contribution rate tables
+- VAT / indirect-tax reverse-charge provisions
 
-Use the Azure AI Search portal or the REST API to upload and index these documents. The NarratorAgent queries this index automatically when `AZURE_AI_SEARCH_ENDPOINT` and `AZURE_AI_SEARCH_KEY` are set.
+Use the Azure AI Search portal or the REST API to upload and index these documents. The Azure OpenAI fallback can query the index when `AZURE_AI_SEARCH_ENDPOINT` and `AZURE_AI_SEARCH_KEY` are set. The classic Agent Service path instead requires the existing Foundry Search connection named by `AZURE_AI_SEARCH_CONNECTION_NAME`.
 
 ### Frontend (Azure Static Web Apps)
 
@@ -261,7 +222,7 @@ az staticwebapp create --name archon-frontend --resource-group archon-rg \
 
 ## Cloud Portability
 
-Archon is designed to be cloud-portable. Switch `JOB_RUNNER_BACKEND` and `AZURE_STORAGE_CONNECTION_STRING` env vars to run the same agent pipeline on AWS or GCP.
+The code separates job orchestration and object storage behind provider-specific settings, but portability to AWS or GCP is an architectural mapping and future integration task, not a verified switch-by-environment-variable capability.
 
 | Component | Azure | AWS | GCP |
 |---|---|---|---|
@@ -277,7 +238,7 @@ Archon is designed to be cloud-portable. Switch `JOB_RUNNER_BACKEND` and `AZURE_
 
 - **Contest:** Microsoft Agents League @ AI Skills Fest 2026
 - **Tracks:** Reasoning Agents (Microsoft Foundry) · Enterprise Agents (Microsoft 365 Copilot)
-- **Microsoft IQ:** Foundry IQ — AzureAISearchTool in NarratorAgent (Best Use of IQ Tools candidate)
+- **Optional narration:** Microsoft Foundry Agent Service (classic) with `AzureAISearchTool` when configured
 - **Live demo:** https://gentle-sky-08574a603.7.azurestaticapps.net
 - **Demo video:** https://youtu.be/NanSqsQMTBg
 - **Backend health:** https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health

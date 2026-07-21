@@ -1,4 +1,4 @@
-name: Pipeline Smoke Test (Azure)
+name: Python Unit Tests + Seeded Analysis Smoke (Azure)
 
 on:
   push:
@@ -11,6 +11,8 @@ jobs:
   smoke-test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +27,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Run extraction unit tests (pytest)
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          python -m pip install -r jobs/extraction/requirements.txt pytest==8.3.4
+          python -m pytest jobs/extraction/tests -q -p no:cacheprovider
+
+      - name: Run analysis unit tests (pytest)
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          python -m pip install -r endpoints/analysis/requirements.txt pytest==8.3.4
+          python -m pytest endpoints/analysis/tests -q -p no:cacheprovider
 
       - name: Generate synthetic sample PDFs
         run: |
@@ -112,16 +128,18 @@ jobs:
       - name: Seed pre-extracted documents (CI stub — bypasses LLM extraction)
         # The extraction pipeline requires Azure OpenAI credentials which are not available
         # in CI. Instead we seed the 7 pre-built synthetic documents directly into Azurite
-        # so the analysis pipeline can run and be validated end-to-end.
+        # so the seeded analysis HTTP path can be smoke-tested.
         run: |
           pip install azure-storage-blob -q
           AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;" \
           AZURE_STORAGE_CONTAINER=archon \
           python scripts/upload_demo_docs.py
 
-      - name: Run end-to-end smoke test
-        # CI_MODE skips the extraction job (step 3/5) and jumps straight to analysis (step 5/5).
-        # The extraction was replaced by the seed step above.
+      - name: Run seeded analysis smoke check
+        # CI_SKIP_EXTRACTION=1 applies to this seeded smoke path only: test-pipeline.sh
+        # skips its upload/extraction/poll steps (2-4) and exercises the analysis HTTP
+        # path over the documents seeded above. The pytest suites earlier in this job
+        # are independent of this flag and always run.
         run: bash scripts/test-pipeline.sh
         env:
           BACKEND_URL: http://localhost:8000
