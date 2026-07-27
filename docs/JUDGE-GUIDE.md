@@ -9,12 +9,14 @@ Tracks: **Reasoning Agents** · **Enterprise Agents**
 
 | Resource | URL |
 |---|---|
-| Live Dashboard | https://gentle-sky-08574a603.7.azurestaticapps.net |
 | Demo Video (5 min) | https://youtu.be/NanSqsQMTBg |
-| Backend Health | https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health |
-| MCP Endpoint | https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/mcp |
-| Analysis Health | https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io/health |
 | CI workflow | https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml |
+
+> The hosted Azure environment (dashboard, backend, MCP and analysis endpoints) was
+> decommissioned in July 2026 after the contest concluded. Every flow in this guide
+> can be reproduced on the local `docker compose` stack described in the README, so
+> the command examples below use the local endpoints (backend `localhost:8000`,
+> analysis `localhost:8001`, dashboard `localhost:3000`).
 
 ---
 
@@ -77,7 +79,7 @@ POST /analyze {"period": "2026-01"}
 ## MCP Evidence
 
 ```
-GET https://archon-backend.politemeadow-da83e97d.westeurope.azurecontainerapps.io/mcp
+GET http://localhost:8000/mcp
 
 {
   "name": "archon-mcp",
@@ -101,9 +103,9 @@ When `AZURE_AI_PROJECT_CONNECTION_STRING` is set, NarratorAgent creates an ephem
 
 When that connection string is absent, the service uses Azure OpenAI Chat Completions. Search grounding on the fallback path requires separate Search endpoint and key settings. CI does not prove the credentialed Agent Service, Search or live extraction paths, so grounded or cited output must be verified separately in the target Azure environment.
 
-To verify live:
+To verify on the local stack:
 ```bash
-curl -s https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io/reports/2026-01 \
+curl -s http://localhost:8001/reports/2026-01 \
   | python -m json.tool | grep -A5 "executiveSummary"
 ```
 
@@ -111,7 +113,10 @@ curl -s https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainera
 
 ## Seeded Demo Walkthrough (3 minutes)
 
-1. Open https://gentle-sky-08574a603.7.azurestaticapps.net
+The hosted demo was decommissioned in July 2026; the same walkthrough runs on the
+local stack (`docker compose up`, then seed as below) and is shown in the demo video.
+
+1. Open http://localhost:3000
 2. Period `2026-01` auto-selects (or choose from dropdown)
 3. **Metric tiles** render values computed from pre-structured synthetic records
 4. **P&L chart** shows the seeded payroll register's employer-cost field separately from the seeded bank transfer
@@ -121,7 +126,7 @@ curl -s https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainera
 
 Seed fresh demo data if needed:
 ```bash
-curl -X POST https://archon-analysis.politemeadow-da83e97d.westeurope.azurecontainerapps.io/seed-demo
+curl -X POST http://localhost:8001/seed-demo
 ```
 
 ---
