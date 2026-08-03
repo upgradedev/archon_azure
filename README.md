@@ -6,7 +6,6 @@ Archon (Αρχων — "ruler/chief") is a prototype for turning business docume
 
 [![Python Unit Tests + Seeded Analysis Smoke](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml/badge.svg?branch=master)](https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Demo Video](https://img.shields.io/badge/Demo%20Video-YouTube-ff0000?logo=youtube)](https://youtu.be/NanSqsQMTBg)
 [![Python unit tests](https://img.shields.io/badge/Python%20unit%20tests-36%20extraction%20%2B%208%20analysis-blue)](docs/JUDGE-GUIDE.md#test-coverage)
 [![Playwright scenarios](https://img.shields.io/badge/Playwright-7%20authored%20live--UI%20checks-informational)](frontend/e2e/dashboard.spec.ts)
 [![Judge Guide](https://img.shields.io/badge/Judge%20Guide-docs-blueviolet)](docs/JUDGE-GUIDE.md)
@@ -238,8 +237,7 @@ The code separates job orchestration and object storage behind provider-specific
 - **Contest:** Microsoft Agents League @ AI Skills Fest 2026
 - **Tracks:** Reasoning Agents (Microsoft Foundry) · Enterprise Agents (Microsoft 365 Copilot)
 - **Optional narration:** Microsoft Foundry Agent Service (classic) with `AzureAISearchTool` when configured
-- **Live demo:** decommissioned in July 2026 after the contest concluded — see the demo video, or reproduce locally with `docker compose up` and the seeded demo data (Quickstart above)
-- **Demo video:** https://youtu.be/NanSqsQMTBg
+- **Live demo:** decommissioned in July 2026 after the contest concluded — reproduce locally with `docker compose up` and the seeded demo data (Quickstart above)
 - **Judge evidence guide:** [docs/JUDGE-GUIDE.md](docs/JUDGE-GUIDE.md)
 - **Architecture diagram:** [docs/architecture.svg](docs/architecture.svg)
 - **License:** MIT

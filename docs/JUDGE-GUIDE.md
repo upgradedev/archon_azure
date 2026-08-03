@@ -9,7 +9,6 @@ Tracks: **Reasoning Agents** · **Enterprise Agents**
 
 | Resource | URL |
 |---|---|
-| Demo Video (5 min) | https://youtu.be/NanSqsQMTBg |
 | CI workflow | https://github.com/upgradedev/archon_azure/actions/workflows/smoke-test.yml |
 
 > The hosted Azure environment (dashboard, backend, MCP and analysis endpoints) was
@@ -114,7 +113,7 @@ curl -s http://localhost:8001/reports/2026-01 \
 ## Seeded Demo Walkthrough (3 minutes)
 
 The hosted demo was decommissioned in July 2026; the same walkthrough runs on the
-local stack (`docker compose up`, then seed as below) and is shown in the demo video.
+local stack (`docker compose up`, then seed as below).
 
 1. Open http://localhost:3000
 2. Period `2026-01` auto-selects (or choose from dropdown)
